@@ -1,0 +1,5 @@
+backend : Qt5Agg
+#interactive  : False
+#text.usetex : True
+#text.latex.unicode : True
+#legend.fancybox  : True
