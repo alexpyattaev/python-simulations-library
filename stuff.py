@@ -142,7 +142,7 @@ def free_space_path_loss(dist: float, frequency_Hz: float):
 
 
 @jit_hardcore
-def friis_path_loss_dB(dist: [float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> float:
+def friis_path_loss_dB(dist: [float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
     """Return the path loss in dB according to Friis formula.
 
     n may be adjusted unlike free_space_path_loss
