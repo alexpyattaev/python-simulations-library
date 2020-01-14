@@ -1,8 +1,7 @@
-from itertools import count
-
 __author__ = 'Alex Pyattaev'
 import numpy as np
 from scipy import signal
+
 
 def IR_to_CSI(ray_powers_dBm: np.array, ray_times_s: np.array,
               system_BW_Hz: float, carrier_freq_Hz: float,
@@ -64,29 +63,39 @@ def IR_to_CSI(ray_powers_dBm: np.array, ray_times_s: np.array,
         # make phases for all components
         FFT_grid = np.sum(np.exp(-sc_freqs * T[:, np.newaxis]) * A[:, np.newaxis], axis=0)
         grid = np.fft.ifft(FFT_grid)
-        IR_power_correction = 10 * np.log10(abs(np.sum(np.square(grid) / (system_BW_Hz / SAMPLING_RATE))))
+        IR_power_correction = abs(np.sum(np.square(grid) / (system_BW_Hz / SAMPLING_RATE)))/2
+        FFT_grid /= np.sqrt(IR_power_correction)
+        grid /= np.sqrt(IR_power_correction)
 
-
-
-    PRx = PL_reference + IR_power_correction
+    PRx = PL_reference + 10 * np.log10(IR_power_correction)
 
     return PRx, SAMPLING_RATE, grid, FFT_grid, T_reference
 
 
+# for compatibility with legacy code
+CSI_sampling = IR_to_CSI
+
+
 if __name__=="__main__":
     import matplotlib.pyplot as plt
+    from lib import speed_of_light
     import scipy
     resample = scipy.signal.resample
-    f,[[ax1, ax2],[iax1, iax2]] = plt.subplots(2,2)
+    f, [[ax1, ax2], [iax1, iax2]] = plt.subplots(2,2)
 
-    tau = 2.5e-5
-    t = 5e-9
-    F = 3e3
-    BW = 1e3
+    tau = .11e-9
+    t = 0.1e-9
+    ant_dist_m = 0.2
+    carrier_F = 2.4e9
+    BW = 20e6
     N_FFT = 64
+    P2 = 1
+
+    lagvector = np.array([1, 0.7])
 
     def press(event):
         global t
+        global ant_dist_m
         for ax in [iax1, ax1, iax2, ax2]:
             ax.clear()
             ax.set_ylim([-3, 3])
@@ -97,28 +106,39 @@ if __name__=="__main__":
                 t = max(1e-9, t-tau)
             if event.key == 'right':
                 t = t+tau
-        ax1.set_title(f't = {t}')
-        p, sr, grid, fft, tref = IR_to_CSI(np.array([1, 1]), np.array([0, t]),
-                                           system_BW_Hz=BW, carrier_freq_Hz=F, N_FFT=N_FFT, speed_ms=np.zeros(2))
-        #L = len(fft)//4
-        #fft = fft[L:-L]
-        #fft = resample(np.abs(fft), N_FFT) * np.exp(1j * resample(np.angle(fft), N_FFT))
+            if event.key == 'down':
+                ant_dist_m = max(0.2, ant_dist_m - 0.2)
+            if event.key == 'up':
+                ant_dist_m = ant_dist_m + 0.2
+        ax1.set_title(f'TOF = {t*1e9:.3f}ns ({t*speed_of_light:.3f} m), spacing={ant_dist_m:.3f} m')
+        # p, sr, grid, fft, tref = CSI_sampling(np.array([1, 1]),  np.array([0, t]),
+        #              system_BW_Hz=BW, carrier_freq_Hz=carrier_F, N_FFT=N_FFT , speed_ms=np.zeros(2))
+        p, sr, grid, fft, tref = CSI_sampling(np.array([1, P2]), np.array([0, t]),
+                                              system_BW_Hz=BW, carrier_freq_Hz=carrier_F, N_FFT=N_FFT)
+
         ax1.plot(np.real(fft))
         ax1.plot(np.imag(fft))
-        ax1.plot(np.abs(fft), linewidth=2)
-        #t_axis = np.linspace(0, 4 / BW, int(BW))
-        iax1.plot(np.real(grid))
-        iax1.plot(np.imag(grid))
+        ax1.bar(np.arange(N_FFT), np.abs(fft), linewidth=2, alpha=0.5)
 
-        p, sr, grid, fft, tref = IR_to_CSI(np.array([1, 1]), np.array([0, t]),
-                                           system_BW_Hz=BW, carrier_freq_Hz=F, N_FFT=N_FFT)
+        iax1.bar(np.arange(N_FFT), np.real(grid), align='edge')
+        iax1.bar(np.arange(N_FFT), np.imag(grid), align='edge')
+        #iax1.plot(np.arange(N_FFT), np.abs(grid))
+        iax1.vlines(0, 0, 1, label='first MPC')
+        iax1.vlines(t * BW*2, 0, 1, label='second MPC')
+
+        DT = ant_dist_m/speed_of_light
+        p, sr, grid, fft, tref = CSI_sampling(np.array([1, P2]), np.array([0, t]) + lagvector * DT,
+                                              system_BW_Hz=BW, carrier_freq_Hz=carrier_F, N_FFT=N_FFT, T_reference=tref)
 
         ax2.plot(np.real(fft))
         ax2.plot(np.imag(fft))
         ax2.bar(np.arange(N_FFT), np.abs(fft), linewidth=2, alpha=0.5)
 
-        iax2.bar(np.arange(N_FFT), np.real(grid))
-        iax2.bar(np.arange(N_FFT), np.imag(grid))
+        iax2.bar(np.arange(N_FFT), np.real(grid),align='edge')
+        iax2.bar(np.arange(N_FFT), np.imag(grid),align='edge')
+        #iax2.plot(np.arange(N_FFT), np.abs(grid))
+        iax2.vlines(DT * BW*2, 0, 1, label='first MPC')
+        iax2.vlines((DT + t) * BW*2, 0, 1, label='second MPC')
 
         f.canvas.draw()
 

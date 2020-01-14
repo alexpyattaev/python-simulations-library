@@ -10,6 +10,10 @@ from scipy.interpolate import interp1d
 import matplotlib as mpl
 import matplotlib.figure
 import matplotlib.cm as cm
+import matplotlib.ticker
+
+import mpl_toolkits
+import mpl_toolkits.mplot3d
 
 
 def matplotlib_IEEE_style():
@@ -51,7 +55,7 @@ def matplotlib_WINTER_style():
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
 
 
-def mpl_figure(title: str, xlabel: str=None, ylabel: str=None) -> mpl.figure.Figure:
+def mpl_figure(title: str, xlabel: str = None, ylabel: str = None) -> mpl.figure.Figure:
     import matplotlib.pyplot as plt
 
     f = plt.figure()
@@ -75,6 +79,7 @@ def make_colors(keys: List, cmap=None):
         return COLORS[keys.index(q)]
 
     return colors_fn
+
 
 def smooth(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
@@ -189,7 +194,8 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
     return X, Y2
 
 
-def draw_point_labels(ax, P: np.ndarray, labels: List[str] = None, **kwargs) -> None:
+def draw_point_labels(ax: typing.Union[matplotlib.figure.Axes, mpl_toolkits.mplot3d.axes3d.Axes3D],
+                      P: np.ndarray, labels: List[str] = None, **kwargs) -> None:
     """
     Draws points with labels
     :param ax: axes to use. Can be 2d or 3d, either way will work
@@ -200,7 +206,7 @@ def draw_point_labels(ax, P: np.ndarray, labels: List[str] = None, **kwargs) -> 
     if labels is None:
         labels = [f"{i}" for i in range(len(P))]
 
-    if ax.name == "3d":
+    if isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D):
         for l, p in zip(labels, P):
             ax.text(p[0] + 0.1, p[1] + 0.1, p[2] + 0.1, l, **kwargs)
     else:
@@ -208,7 +214,7 @@ def draw_point_labels(ax, P: np.ndarray, labels: List[str] = None, **kwargs) -> 
             ax.text(p[0] + 0.1, p[1] + 0.1, l, **kwargs)
 
 
-def plot_cylinder(ax, pos, size, **kwargs):
+def plot_cylinder(ax: mpl_toolkits.mplot3d.axes3d.Axes3D, pos, size: List[float], **kwargs):
     """Plot a cylinder in 3d.
     :param ax: axes
     :param pos: position (3-vect)
@@ -272,7 +278,7 @@ def plot_var_thick(x, wmin: float = 0.5, wmax: float = 2, **style):
         raise NotImplementedError("unsupported dimension {}".format(D))
 
 
-def axisEqual3D(ax):
+def axisEqual3D(ax: mpl_toolkits.mplot3d.axes3d.Axes3D):
     extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
     sz = extents[:, 1] - extents[:, 0]
     centers = np.mean(extents, axis=1)
@@ -285,7 +291,7 @@ def axisEqual3D(ax):
 default_plot_path = "./plots"  # The place where all plots will be dropped by default
 
 
-def savefig(fig: object, title: str,
+def savefig(fig: matplotlib.figure.Figure, title: str,
             path: str = default_plot_path,
             img_formats: typing.Tuple[str, ...] = ('svg', 'png'), mplfig=False) -> None:
     """
@@ -320,3 +326,13 @@ def loadfig(fname: str) -> object:
     fig = pickle.load(fobj)
     fobj.close()
     return fig
+
+
+def setticks(ax, stepsize=1) -> None:
+    """
+    Set ticks on axes at regular intervals. Useful for showing floorplans and other scaled image data
+    :param ax: axes to work on
+    :param stepsize: step size in plot units
+    """
+    ax.get_xaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
+    ax.get_yaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
