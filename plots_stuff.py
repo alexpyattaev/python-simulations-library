@@ -1,6 +1,7 @@
 import os
 import pickle
 import typing
+from functools import partial
 from typing import List
 
 import numpy as np
@@ -50,20 +51,20 @@ def matplotlib_WINTER_style():
 
     mpl.rc('font', family='Sans', weight='bold', size=12)
     mpl.rc('legend', fontsize='medium')
-
+    mpl.rc('errorbar', capsize= 5)
     mpl.rc('axes', prop_cycle=cycler(color=['blue', 'green', 'red'], marker=('v', 'o', '+')))
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
 
 
 def mpl_figure(title: str, xlabel: str = None, ylabel: str = None) -> mpl.figure.Figure:
     import matplotlib.pyplot as plt
-
     f = plt.figure()
     plt.title(title)
     if xlabel:
         plt.xlabel(xlabel)
     if ylabel:
         plt.ylabel(ylabel)
+    plt.grid()
     return f
 
 
