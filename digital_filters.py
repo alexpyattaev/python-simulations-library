@@ -1,7 +1,30 @@
-from typing import Tuple, Iterable
+from typing import Tuple, Iterable, Union
 
 import numpy as np
 from scipy.special._ufuncs import expit
+from scipy import signal
+
+
+class Stateful_Linear_Filter:
+    """A linear filter wrapper for Numpy suitable to process samples one at a time.
+    Closely mimics how a real signal processor would work with the data (i.e. not as array but as sequence of floats).
+    """
+    def __init__(self, b: np.ndarray, a: np.ndarray):
+        """
+        Initialize with output of filter design (b and a arrays)
+        """
+        self.b = b
+        self.a = a
+        self._state = signal.lfilter_zi(self.b, self.a)
+
+    def __call__(self, x: float) -> float:
+        """
+        Actually filter the data
+        :param x: value to be filtered next (only one!)
+        :return: current output of the filter
+        """
+        x, self._state = signal.lfilter(self.b, self.a, [x], zi=self._state)
+        return x[0]
 
 
 def ZOH_filter(data, actual_times, desired_times):
