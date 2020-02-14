@@ -196,7 +196,7 @@ True
 """
 
 import math
-import rng
+from lib import rng
 import numpy
 from pyquaternion import Quaternion
 
