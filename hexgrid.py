@@ -138,11 +138,13 @@ def hexgrid_cells(cluster_size=7):
                 cls.append((cell_x, cell_y))
         return cls
 
+
 def hexgrid_box(size = 5):
     if size % 2 == 0:
         warn('Box hexgrid produces best results when size is odd')
     r = range(int(-(size // 2)), int((size + 1) // 2))
     return list(itertools.product(r, r))
+
 
 if __name__ == "__main__":
     pos = ((-1, 1), (1, 1), (-2, 0), (2, 0), (-1, -2), (1, -2))
