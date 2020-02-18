@@ -31,7 +31,6 @@ normal = _rng.normal
 laplace = _rng.laplace
 poisson = _rng.poisson
 rand = _rng.rand
-rng = _rng.rand
 gamma = _rng.gamma
 exponential = _rng.exponential
 binomial = _rng.binomial

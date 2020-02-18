@@ -3,7 +3,7 @@ from math import sqrt, sin, cos, pi, atan2, floor, ceil
 
 from lib import pi_wrap
 from lib.vectors import norm
-import rng
+from lib import rng
 import numpy as np
 import itertools
 from debug_log import warn
@@ -41,8 +41,8 @@ def hexgrid(x, y, r):
 def pos_sector(x, y, rmin, rmax, a):
     amin = a - pi / 3
     amax = a + pi / 3
-    a = uniform(amin, amax)
-    r = sqrt(uniform((rmin / rmax) ** 2, 1.0)) * rmax
+    a = rng.uniform(amin, amax)
+    r = sqrt(rng.uniform((rmin / rmax) ** 2, 1.0)) * rmax
     x += cos(a) * r
     y += sin(a) * r
     return (x, y)
@@ -55,20 +55,20 @@ def pos_fixed(x, y, x_shift, y_shift):
 
 @jit
 def pos_around(x, y, rmin, rmax):
-    r = np.sqrt(uniform((rmin / rmax), 1.0))
+    r = np.sqrt(rng.uniform((rmin / rmax), 1.0))
     r = r * rmax
-    a = uniform(0, 2 * pi)
+    a = rng.uniform(0, 2 * pi)
     x += cos(a) * r
     y += sin(a) * r
     return x, y
 
 @jit
 def pos_around_3d(x, y, z, rmin, rmax):
-    r = uniform((rmin / rmax), 1.0)
+    r = rng.uniform((rmin / rmax), 1.0)
     r = r * rmax
 
-    phi = uniform(0, 2*pi)
-    theta = uniform(0, pi)
+    phi = rng.uniform(0, 2*pi)
+    theta = rng.uniform(0, pi)
 
     x += r * sin(theta) * cos(phi)
     y += r * sin(theta) * sin(phi)
@@ -79,11 +79,11 @@ def pos_around_3d(x, y, z, rmin, rmax):
 
 @jit
 def pos_on_cylinder(x, y, z, radius, z_delta):
-    phi = uniform(0, 2*pi)
+    phi = rng.uniform(0, 2*pi)
 
     x += radius * cos(phi)
     y += radius * sin(phi)
-    z += uniform(-z_delta, z_delta)
+    z += rng.uniform(-z_delta, z_delta)
 
     return x, y, z
 
@@ -108,8 +108,8 @@ def pos_around_hex(x1, y1, rmin, r_max):
 def pos_around_square(x, y, x_side, y_side):
     origin_x = x - (x_side / 2)
     origin_y = y - (y_side / 2)
-    x = origin_x + uniform(0, x_side)
-    y = origin_y + uniform(0, y_side)
+    x = origin_x + rng.uniform(0, x_side)
+    y = origin_y + rng.uniform(0, y_side)
     return x, y
 
 def hexgrid_in_box(box_x,box_y,r):
