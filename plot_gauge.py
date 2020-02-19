@@ -68,7 +68,7 @@ def gauge(ax: Axes, bounds: Tuple[float, float], arrow: float, labels=('A', 'B',
     [ax.add_patch(p) for p in patches]
 
     """
-    set the labels 
+    set the autolabel_service 
     """
 
     for mid, lab in zip(mid_points, labels):
