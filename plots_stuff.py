@@ -198,7 +198,7 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
 def draw_point_labels(ax: typing.Union[matplotlib.figure.Axes, mpl_toolkits.mplot3d.axes3d.Axes3D],
                       P: np.ndarray, labels: List[str] = None, **kwargs) -> None:
     """
-    Draws points with labels
+    Draws points with autolabel_service
     :param ax: axes to use. Can be 2d or 3d, either way will work
     :param P: array of points
     :param labels:

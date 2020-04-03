@@ -1,12 +1,22 @@
+import inspect
 from bisect import bisect_left
 from math import log, pi
 from typing import Union
-
+import os
 import numpy as np
 
 from lib.numba_opt import jit_hardcore, jit
 
 speed_of_light = 299792458 * 1.0003  # meters/sec
+
+
+def pprint(*args, **kwargs):
+    frm = inspect.stack()[1]
+    s = f"{os.path.split(frm[1])[1]}::{frm[3]}::"
+    del frm
+
+    args = [s] + list(args)
+    print(*args, **kwargs)
 
 
 class Any(object):

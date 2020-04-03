@@ -5,7 +5,7 @@ from scipy import signal
 
 def IR_to_CSI(ray_powers_dBm: np.array, ray_times_s: np.array,
               system_BW_Hz: float, carrier_freq_Hz: float,
-              N_FFT: int=256, grid_scale:int=4, speed_ms: np.array = (), T_reference=None):
+              N_FFT: int=256, grid_scale:int=4, speed_ms: np.array = (), T_reference=None, phase_estimation_error=0.0):
     SAMPLING_RATE = int(system_BW_Hz * 2)  # Sampling rate of the model
     DOPPLER_FREQS = np.array(speed_ms, dtype=float) / 3e8 * carrier_freq_Hz 
     pulse_samples = N_FFT
@@ -23,8 +23,8 @@ def IR_to_CSI(ray_powers_dBm: np.array, ray_times_s: np.array,
     P = P[flt]
 
     if T_reference is None:
-        T_reference = T.min()
-    T = T - T_reference  # remove propagation delay
+        T_reference = T.min() + phase_estimation_error
+    T = T - T_reference + phase_estimation_error # remove propagation delay
 
     if len(DOPPLER_FREQS):
         # FIXME: Make sure this works correctly when multiple MPCs land in same time bin!!!
