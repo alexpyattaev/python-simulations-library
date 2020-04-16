@@ -130,10 +130,10 @@ def hexgrid_cells(cluster_size=7):
     elif cluster_size == 7:
         return [(0, 0), (0, -1), (1, -1), (-1, -1), (-1, 0), (0, 1), (1, 0)]
     elif cluster_size == 19:
-        cls = []
+        cls = [(0,0)]
         for cell_x in range(-2, 3):
             for cell_y in range(-2, 3):
-                if abs(cell_x) + abs(cell_y) > 3 or (cell_y == 2 and abs(cell_x) == 1):
+                if abs(cell_x) + abs(cell_y) > 3 or (cell_y == 2 and abs(cell_x) == 1) or (cell_x == 0 and cell_y == 0):
                     continue
                 cls.append((cell_x, cell_y))
         return cls
