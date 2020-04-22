@@ -337,3 +337,16 @@ def setticks(ax, stepsize=1) -> None:
     """
     ax.get_xaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
     ax.get_yaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
+
+def draw_hexes(vertices: np.ndarray, color: str, linestyle: str, linewidth: int):
+    import matplotlib.pyplot as plt
+    for hex in vertices:
+        for i in range(len(hex)):
+            start = hex[i]
+            if i + 1 == len(hex):
+                end = hex[0]
+            else:
+                end = hex[i + 1]
+            # print(f"Drawing line from {start} to {end}")
+            plt.plot(np.array([start[0], end[0]]), np.array([start[1], end[1]]), color=color, linestyle=linestyle,
+                     linewidth=linewidth)

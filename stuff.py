@@ -217,3 +217,6 @@ def color_print_okblue(msg):
 def color_print_warning(msg):
     print(cmdline_colors["WARNING"], msg, cmdline_colors['END'])
 
+
+def bool_array_to_string(arr):
+    return "".join(("01"[i] for i in arr))
