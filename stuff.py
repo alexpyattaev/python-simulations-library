@@ -201,7 +201,10 @@ def color_msg(msg, color):
 
 def color_print(kind, msg, fd=(sys.stdout,)):
     for f in fd:
-        print(cmdline_colors[kind], msg, cmdline_colors['END'], file=f, flush=True)
+        if kind is None:
+            print(msg, file=f, flush=True)
+        else:
+            print(cmdline_colors[kind], msg, cmdline_colors['END'], file=f, flush=True)
 
 
 def color_print_error(msg, fd=(sys.stdout,)):
