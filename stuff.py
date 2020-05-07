@@ -1,4 +1,5 @@
 import inspect
+import sys
 from bisect import bisect_left
 from math import log, pi
 from typing import Union
@@ -189,7 +190,7 @@ numeric_types = (float, int, np.number)
 # This somewhat depends on what platform you are on.
 # The most common way to do this is by printing ANSI escape sequences.
 cmdline_colors = {
-    'HEADER':  '\033[95m', 'OKBLUE': '\033[94m', 'OKGREEN': '\033[92m',
+    'HEADER': '\033[95m', 'OKBLUE': '\033[94m', 'OKGREEN': '\033[92m',
     'WARNING': '\033[93m', 'FAIL': '\033[91m', 'END': '\033[0m'
 }
 
@@ -198,24 +199,29 @@ def color_msg(msg, color):
     return cmdline_colors[color] + msg + cmdline_colors['END']
 
 
-def color_print_error(msg):
-    print(cmdline_colors["FAIL"], msg, cmdline_colors['END'])
+def color_print(kind, msg, fd=(sys.stdout,)):
+    for f in fd:
+        print(cmdline_colors[kind], msg, cmdline_colors['END'], file=f, flush=True)
 
 
-def color_print_header(msg):
-    print(cmdline_colors["HEADER"], msg, cmdline_colors['END'])
+def color_print_error(msg, fd=(sys.stdout,)):
+    color_print("FAIL", msg, fd=fd)
 
 
-def color_print_okgreen(msg):
-    print(cmdline_colors["OKGREEN"], msg, cmdline_colors['END'])
+def color_print_header(msg, fd=(sys.stdout,)):
+    color_print("HEADER", msg, fd=fd)
 
 
-def color_print_okblue(msg):
-    print(cmdline_colors["OKBLUE"], msg, cmdline_colors['END'])
+def color_print_okgreen(msg, fd=(sys.stdout,)):
+    color_print("OKGREEN", msg, fd=fd)
 
 
-def color_print_warning(msg):
-    print(cmdline_colors["WARNING"], msg, cmdline_colors['END'])
+def color_print_okblue(msg, fd=(sys.stdout,)):
+    color_print("OKBLUE", msg, fd=fd)
+
+
+def color_print_warning(msg, fd=(sys.stdout,)):
+    color_print("WARNING", msg, fd=fd)
 
 
 def bool_array_to_string(arr):
