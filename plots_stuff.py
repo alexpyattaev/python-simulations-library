@@ -1,8 +1,6 @@
 import os
 import pickle
-import typing
-from functools import partial
-from typing import List
+from typing import List, Union, Callable, Tuple
 
 import numpy as np
 from matplotlib import cycler
@@ -16,6 +14,7 @@ import matplotlib.ticker
 import mpl_toolkits
 import mpl_toolkits.mplot3d
 
+plot_opts_imshow_waterfall = dict(aspect="auto", interpolation="nearest", origin='lower')
 
 def matplotlib_IEEE_style():
     """IEEE style by Olga Galinina. Applies to all figures that will be created"""
@@ -51,7 +50,7 @@ def matplotlib_WINTER_style():
 
     mpl.rc('font', family='Sans', weight='bold', size=12)
     mpl.rc('legend', fontsize='medium')
-    mpl.rc('errorbar', capsize= 5)
+    mpl.rc('errorbar', capsize=5)
     mpl.rc('axes', prop_cycle=cycler(color=['blue', 'green', 'red'], marker=('v', 'o', '+')))
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
 
@@ -68,11 +67,13 @@ def mpl_figure(title: str, xlabel: str = None, ylabel: str = None) -> mpl.figure
     return f
 
 
-def make_colors(keys: List, cmap=None):
+def make_colors(keys: list, cmap=None) -> Callable[[object], list]:
     if cmap is None:
         if len(keys) < 5:
+            # noinspection PyUnresolvedReferences
             cmap = cm.brg
         else:
+            # noinspection PyUnresolvedReferences
             cmap = cm.viridis
     COLORS = [cmap(i) for i in np.linspace(0, 1, len(keys))]
 
@@ -143,8 +144,8 @@ def cdfplot(data: np.ndarray, yrange: float = 1.0):
     :return: the X and Y values to be used in plot
     """
     X = np.sort(data)
-    l = X.shape[0]
-    Y = np.linspace(yrange / l, yrange, l)
+    L = X.shape[0]
+    Y = np.linspace(yrange / L, yrange, L)
     return X, Y
 
 
@@ -156,6 +157,9 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
     :param Q: specifies fraction of original data span to cover on each side.
     :return: the X and Y values to be used in plot
     """
+    if len(data) == 0:
+        raise ValueError("Data can not be empty")
+
     X, Y = cdfplot(data)
 
     if final_samples > X.shape[0] / 2:
@@ -164,7 +168,9 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
     f = interp1d(X, Y, kind="linear", fill_value=(0, 1), assume_sorted=True, bounds_error=False)
 
     # Find limits of support data
+    # noinspection PyArgumentList
     xmin = X.min()
+    # noinspection PyArgumentList
     xmax = X.max()
     span = xmax - xmin
     # make even-spaced support with reserve value for ringing
@@ -195,7 +201,7 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
     return X, Y2
 
 
-def draw_point_labels(ax: typing.Union[matplotlib.figure.Axes, mpl_toolkits.mplot3d.axes3d.Axes3D],
+def draw_point_labels(ax: Union[matplotlib.figure.Axes, mpl_toolkits.mplot3d.axes3d.Axes3D],
                       P: np.ndarray, labels: List[str] = None, **kwargs) -> None:
     """
     Draws points with autolabel_service
@@ -207,11 +213,10 @@ def draw_point_labels(ax: typing.Union[matplotlib.figure.Axes, mpl_toolkits.mplo
     if labels is None:
         labels = [f"{i}" for i in range(len(P))]
 
-    if isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D):
-        for l, p in zip(labels, P):
+    for l, p in zip(labels, P):
+        if isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D):
             ax.text(p[0] + 0.1, p[1] + 0.1, p[2] + 0.1, l, **kwargs)
-    else:
-        for l, p in zip(labels, P):
+        else:
             ax.text(p[0] + 0.1, p[1] + 0.1, l, **kwargs)
 
 
@@ -294,7 +299,7 @@ default_plot_path = "./plots"  # The place where all plots will be dropped by de
 
 def savefig(fig: matplotlib.figure.Figure, title: str,
             path: str = default_plot_path,
-            img_formats: typing.Tuple[str, ...] = ('svg', 'png'), mplfig=False) -> None:
+            img_formats: Tuple[str, ...] = ('svg', 'png'), mplfig=False) -> None:
     """
     Save a matplotlib figure into variety of formats.
 
