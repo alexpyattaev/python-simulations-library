@@ -14,7 +14,6 @@ from lib import color_print_warning, color_print_okblue, stub
 import matplotlib.cm as cm
 
 
-
 def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem",
                        server_crt='certs/ca.crt') -> Database:
     """
@@ -72,11 +71,11 @@ def ensure_indices(collection: Collection, drop_current=False, index_base_name="
             collection.create_index(keys, name=name, unique=False, sparse=True)
 
 
-def experiment_label(coll: Collection, exp, new_label:str = None):
+def experiment_label(coll: Collection, exp, new_label: str = None):
     if new_label is not None:
         if new_label != "":
             coll.update_one(filter={'_id': exp['_id']},
-                        update={'$set': {'label': new_label}})
+                            update={'$set': {'label': new_label}})
         else:
             coll.update_one(filter={'_id': exp['_id']},
                             update={'$unset': 'label'})
@@ -102,7 +101,7 @@ def recursive_clean(collection: Collection, obj, pointer_name='link') -> int:
     c = collection.delete_many({'_id': oid}).deleted_count
     for o in to_clean:
         c += recursive_clean(collection, o)
-    return c 
+    return c
 
 
 def mongo_make_colors(coll, key, cmap=None):
@@ -143,11 +142,35 @@ class Cached_Data_Descriptor:
 
 
 def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
-                       fields_node:Dict[str, str]=None,
-                       fields_interface:Dict[str, str]= None,
-                       node_breakdown_param:str = 'subtype', )->Cached_Data_Descriptor:
+                       fields_node: Dict[str, str] = None,
+                       fields_interface: Dict[str, str] = None,
+                       node_breakdown_param: str = 'subtype', ) -> Cached_Data_Descriptor:
+    """
+    Preprocess a dataset by copying only needed fileds into junk collection.
+    The overall structure of the collection is essentially preserved, but the data
+    from different seeds will be aggregated into lists for a given field, rather than as individual points.
 
-    def check_keys(a,b):
+    :param collection: A collection to read from (i.e. with data)
+    :param junk: A collection where stuff can be written (i.e. disposable collection)
+    :param exp: the Experiment document
+    :param reload_results: set to True to always reload, False to never reload, AUTO to decide automatically
+
+    :param fields_node: Which keys to extract from nodes and how to save them, e.g.
+             fields_node = {'data_bytes_delivered': "throughput",
+                            'data_bytes_generated': "generated",
+                            'data_bytes_dropped': "dropped",
+                            'pos': 'pos'}
+    :param fields_interface: Which keys to extract from interfaces and how to save them, e.g.
+             fields_interface = {"tx_power":"tx_power", "csma_rts_attempts": "rts_attempts"}
+    :param node_breakdown_param: additional node category breakdown field (like, is it a BS or client)
+    :returns a data descriptor which contains information about the data inserted into
+            the junk collection as a result of this function
+
+    Usage of this is only appropriate if you do not mind destroying "junk" collection. Further operations with data
+    can be made either directly or with organize_results() function.
+    """
+
+    def check_keys(a, b):
         int = set(a.keys()).intersection(b.keys())
         if int:
             print("Can not use same keys for record ID and field values, please rename keys:")
@@ -257,7 +280,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
 
     group1 = {
         "$group": {
-            "_id":   {f"{n}": f"${n}" for n in chain(group_params, [sweep])},
+            "_id": {f"{n}": f"${n}" for n in chain(group_params, [sweep])},
             "items": {"$push": f"${field}"}
         }
     }
@@ -266,7 +289,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
 
     group2 = {
         "$group": {
-            "_id":  {f"{n}": f"$_id.{n}" for n in group_params},
+            "_id": {f"{n}": f"$_id.{n}" for n in group_params},
             "DATA": {"$push": {f"{sweep}": f"$_id.{sweep}", "FIELD": "$items"}}
         }
     }
@@ -275,7 +298,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
     pipeline = [match, group1, sort1, group2, sort2]
 
     if not quiet:
-        color_print_okblue("Will run aggregate:[" + ',\n'.join([str(i) for i in pipeline])+"]")
+        color_print_okblue("Will run aggregate:[" + ',\n'.join([str(i) for i in pipeline]) + "]")
 
     records = coll.aggregate(pipeline)
     records = list(records)
