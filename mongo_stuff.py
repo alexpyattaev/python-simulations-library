@@ -243,6 +243,8 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                         check_keys(updates, d)
 
                         junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                        if fields_interface is None:
+                            continue
                         ifaces = list(collection.find({"type": "INTERFACE", "link": node['_id']},
                                                       list(fields_interface.keys())))
                         assert len(ifaces) == 1
