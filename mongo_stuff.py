@@ -94,6 +94,7 @@ def recursive_clean(collection: Collection, obj, pointer_name='link') -> int:
     Clears recursively everything that links to obj.
     :param collection: Collection to operate on
     :param obj: "root" object
+    :param pointer_name: name of the linking field (do not change unless you know what you are doing=)
     :return: number of objects deleted
     """
     oid = obj['_id']
