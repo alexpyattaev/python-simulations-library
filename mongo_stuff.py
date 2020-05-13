@@ -145,7 +145,8 @@ class Cached_Data_Descriptor:
 def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
                        fields_interface: Dict[str, str] = None,
-                       node_breakdown_param: str = 'subtype', ) -> Cached_Data_Descriptor:
+                       node_breakdown_param: str = 'subtype',
+                       tag: str = 'STUFF', ) -> Cached_Data_Descriptor:
     """
     Preprocess a dataset by copying only needed fileds into junk collection.
     The overall structure of the collection is essentially preserved, but the data
@@ -164,6 +165,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     :param fields_interface: Which keys to extract from interfaces and how to save them, e.g.
              fields_interface = {"tx_power":"tx_power", "csma_rts_attempts": "rts_attempts"}
     :param node_breakdown_param: additional node category breakdown field (like, is it a BS or client)
+    :param tag: tag under which the data is dumped in the junk collection
     :returns a data descriptor which contains information about the data inserted into
             the junk collection as a result of this function
 
@@ -179,6 +181,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
             raise KeyError()
 
     cache_descr = Cached_Data_Descriptor()
+    cache_descr.TAG = tag
     ensure_indices(collection)
 
     trials = collection.find({"link": exp['_id']}).sort("params", DESCENDING)
@@ -199,7 +202,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
         RELOAD_RESULTS = reload_results
 
     if RELOAD_RESULTS:
-        junk.delete_many({})
+        junk.delete_many({'TAG':tag})
 
         print('Grouping within MC trials')
         MC_groups = collection.aggregate([{"$match": {"link": exp['_id']}},
@@ -258,7 +261,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
         junk.insert_one({"exp_ID": exp['_id']})
     else:
         print("Loading cached values")
-        st = junk.find_one({"TAG": "STUFF"})
+        st = junk.find_one({"TAG": tag})
         st = {k: st[k] for k in asdict(cache_descr).keys()}
         cache_descr = replace(cache_descr, **st)
 
