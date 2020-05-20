@@ -81,3 +81,16 @@ def fit_bezier_curve(x_points: np.ndarray, y_points: np.ndarray, derivatives: It
 
     # interpolate curve and return it
     return interp1d(curve_x_vals, curve_y_vals, kind='cubic')
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    x_points = [0, 3, 4, 5, 8, 10]
+    y_points = [0, 2, 10, 4, 2, 0]
+    derivatives = [0, 1, 2, -2, -4, 0]
+    f = fit_bezier_curve(x_points=np.array(x_points), y_points=np.array(y_points), derivatives=np.array(derivatives), resolution=50, aggressiveness=0.5)
+
+    xnew = np.linspace(0, 10, num=100, endpoint=True)
+    plt.plot(x_points, y_points, "*")
+    plt.plot(xnew, f(xnew))
+    plt.show()
