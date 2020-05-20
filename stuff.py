@@ -2,7 +2,7 @@ import inspect
 import sys
 from bisect import bisect_left
 from math import log, pi
-from typing import Union
+from typing import Union, Callable
 import os
 import numpy as np
 
@@ -229,3 +229,13 @@ def color_print_warning(msg, fd=(sys.stdout,)):
 
 def bool_array_to_string(arr):
     return "".join(("01"[i] for i in arr))
+
+
+def fitargs(f: Callable, kwargs: dict):
+    """
+    Fit keyword arguments to called function parameter list
+    :param f: function to use
+    :param kwargs: available dict with kwargs
+    :return: filtered list of kwargs that can be used to call the function
+    """
+    return {k: kwargs[k] for k in inspect.signature(f).parameters if k in kwargs}
