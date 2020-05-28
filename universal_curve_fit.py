@@ -80,17 +80,17 @@ def fit_bezier_curve(x_points: np.ndarray, y_points: np.ndarray, derivatives: It
         curve_y_vals = np.concatenate([curve_y_vals, ret[1][1:]], axis=0)
 
     # interpolate curve and return it
-    return interp1d(curve_x_vals, curve_y_vals, kind='cubic')
+    return interp1d(curve_x_vals, curve_y_vals, kind='linear',fill_value="extrapolate", bounds_error = False)
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    x_points = [0, 3, 4, 5, 8, 10]
-    y_points = [0, 2, 10, 4, 2, 0]
-    derivatives = [0, 1, 2, -2, -4, 0]
-    f = fit_bezier_curve(x_points=np.array(x_points), y_points=np.array(y_points), derivatives=np.array(derivatives), resolution=50, aggressiveness=0.5)
+    x_points = [70, 75, 80, 85, 90, 95, 100, 105, 110, 115]
+    y_points = [0, 5, 25, 5, 20, 0, 15, -5, 0, 0]
+    derivatives = [0, 0.3, 0, -0.1, -0.1, -0.07, -0.05, 0]
+    f = fit_bezier_curve(x_points=np.array(x_points), y_points=np.array(y_points), resolution=50, aggressiveness=0.5)
 
-    xnew = np.linspace(0, 10, num=100, endpoint=True)
+    xnew = np.linspace(x_points[0], x_points[-1], num=100, endpoint=True)
     plt.plot(x_points, y_points, "*")
     plt.plot(xnew, f(xnew))
     plt.show()
