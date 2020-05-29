@@ -7,33 +7,30 @@ __author__ = "Henrik Talarmo"
 
 
 def fit_bezier_curve(x_points: np.ndarray, y_points: np.ndarray, derivatives: Iterable[float] = None,
-                        resolution: int = 10, aggressiveness: float = 0.5) -> interp1d:
+                        resolution: int = 10, aggressiveness: float = 0.5, auto_smooth: bool = False,
+                        flatten_smooth_ends: bool = False) -> interp1d:
     """
     Creates a function for a curve defined by a set of points and the derivatives at those points. It uses bezier curves
     to define curves between the nodes and constructs a continuous curve based on those.
 
     :param x_points:
         1-dimensional array containing the x-coordinates of the nodes. Assumes that the nodes are in order in x-axis.
-    :type x_points:
-        numpy.ndarray
     :param y_points:
         1-dimensional array containing the y-coordinates of the nodes.
-    :type y_points:
-        numpy.ndarray
     :param derivatives:
         1-dimensional array containing all the derivatives of the nodes. The bezier curve will ensure that the resulting
         curve's derivative is 0 at these points. If set to None, it will assume derivative of 0 for all nodes.
-    :type derivatives:
-        Any iterable
     :param resolution:
         Defines the smoothness of the curve before interpolation.
-    :type resolution:
-        int
     :param aggressiveness:
         Defines how aggressively the bezier curves between nodes are defined. Must be between 0 and 0.5. If set to 0 the
         end result is effectively a linear interpolation between the points.
-    :type aggressiveness:
-        float
+    :param auto_smooth:
+        Set True with no derivatives set to have the curve fitter automatically calculate derivatives to smooth out the
+        nodes.
+    :param flatten_smooth_ends:
+        If true and auto_smooth is set to True, will set derivatives of the end points to 0 to ensure that the curve
+        doesn't point in awkward directions at the ends.
     :return:
         Returns an interp1d object that acts as a function that defines the given curve defined from x_points[0] to
         x_points[-1]
@@ -42,7 +39,35 @@ def fit_bezier_curve(x_points: np.ndarray, y_points: np.ndarray, derivatives: It
     """
     assert 0 < aggressiveness <= 0.5, "Valid range for aggressiveness is 0..0.5"
     if derivatives is None:
-        derivatives = np.zeros(shape=x_points.shape)
+        if auto_smooth:
+            derivatives = []
+            for i in range(len(y_points)):
+                x_distance = 0
+                if flatten_smooth_ends:
+                    if i in [0, len(y_points)-1]:
+                        derivatives.append(0)
+                    else:
+                        prev = y_points[i-1]
+                        nxt = y_points[i+1]
+                        x_distance += x_points[i+1] - x_points[i]
+                        x_distance += x_points[i] - x_points[i-1]
+                        derivatives.append((nxt - prev) / x_distance)
+                else:
+                    if i == 0:
+                        prev = 0
+                        x_distance += x_points[i+1] - x_points[i]
+                    else:
+                        prev = y_points[i-1]
+                        x_distance += x_points[i] - x_points[i-1]
+                    if i == len(y_points)-1:
+                        nxt = 0
+                        x_distance += x_points[i] - x_points[i-1]
+                    else:
+                        nxt = y_points[i+1]
+                        x_distance += x_points[i+1] - x_points[i]
+                    derivatives.append((nxt - prev) / x_distance)
+        else:
+            derivatives = np.zeros(shape=x_points.shape)
     assert len(derivatives) == len(x_points) == len(y_points), "All arrays must be the same length"
 
     # Create node lists containing all the points of the full curve
@@ -85,12 +110,12 @@ def fit_bezier_curve(x_points: np.ndarray, y_points: np.ndarray, derivatives: It
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    x_points = [70, 75, 80, 85, 90, 95, 100, 105, 110, 115]
-    y_points = [0, 5, 25, 5, 20, 0, 15, -5, 0, 0]
-    derivatives = [0, 0.3, 0, -0.1, -0.1, -0.07, -0.05, 0]
-    f = fit_bezier_curve(x_points=np.array(x_points), y_points=np.array(y_points), resolution=50, aggressiveness=0.5)
+    x_points = [70, 75, 80, 85, 90, 95, 100, 105, 110]
+    y_points = [0,  20, 12, 7,  5,  3,  2,   1,   0,]
+    # derivatives = [0, 0.3, 0, -0.1, -0.1, -0.07,  0]
+    f = fit_bezier_curve(x_points=np.array(x_points), y_points=np.array(y_points), resolution=50, aggressiveness=0.5, auto_smooth=True)
 
-    xnew = np.linspace(x_points[0], x_points[-1], num=100, endpoint=True)
+    xnew = np.linspace(x_points[0]-5, x_points[-1]+5, num=100, endpoint=True)
     plt.plot(x_points, y_points, "*")
     plt.plot(xnew, f(xnew))
     plt.show()
