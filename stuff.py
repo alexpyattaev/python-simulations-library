@@ -227,6 +227,9 @@ def color_print_warning(msg, fd=(sys.stdout,)):
     color_print("WARNING", msg, fd=fd)
 
 
+def merge_axes(arr, ax_merge):
+    return None
+
 def bool_array_to_string(arr):
     return "".join(("01"[i] for i in arr))
 

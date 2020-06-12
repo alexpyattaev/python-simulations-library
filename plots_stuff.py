@@ -284,6 +284,35 @@ def plot_var_thick(x, wmin: float = 0.5, wmax: float = 2, **style):
         raise NotImplementedError("unsupported dimension {}".format(D))
 
 
+def show_matrix(*args, vmin=None, vmax=None, block=True, row_break=5,sharex='none',sharey='none', **kwargs):
+    import matplotlib.pyplot as plt
+    kwargs.update({f"arg {i}": a for i, a in enumerate(args)})
+
+    N_cols = len(kwargs)
+    N_rows = N_cols // row_break + 1
+    if N_rows > 1:
+        N_cols = row_break
+
+    f, axs = plt.subplots(N_rows, N_cols, squeeze=False, sharex=sharex, sharey=sharey)
+    for i, (name, data) in enumerate(kwargs.items()):
+        ndim = data.ndim
+        col = i % row_break
+        row = i//row_break
+        ax = axs[row, col]
+        ax.set_title(name)
+        if ndim == 1:
+            ax.plot(data, label=name)
+            ax.set_ylim([vmin, vmax])
+        elif ndim == 2:
+            im = ax.imshow(data, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto', origin='lower')
+            f.colorbar(im, ax=ax)
+        else:
+            print(f"Provided input {name} has number of dimensions {ndim} which is not supported")
+            raise ValueError('number of dimensions not supported')
+    if block:
+        plt.show(block=True)
+    return f
+
 def axisEqual3D(ax: mpl_toolkits.mplot3d.axes3d.Axes3D):
     extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
     sz = extents[:, 1] - extents[:, 0]
