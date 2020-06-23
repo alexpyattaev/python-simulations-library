@@ -89,3 +89,18 @@ def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) 
 
 def binary_transition_smooth(x, xthr, S=5.0):
     return 1 - expit(x / xthr * S - S)
+
+
+if __name__ == "__main__":
+    import numpy as np
+    import matplotlib.pyplot as plt
+    x = np.linspace(0, 5, 100)
+    T = 1.5
+    y = binary_transition_smooth(x,T, S=5.0)
+    plt.plot(x, y, label='smooth transition (regression)')
+    y = x < T
+    plt.plot(x, y, label='binary transition (classification)')
+    plt.xlabel('Distance')
+    plt.ylabel('Proximity')
+    plt.legend()
+    plt.show()
