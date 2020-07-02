@@ -2,7 +2,7 @@ import inspect
 import sys
 from bisect import bisect_left
 from math import log, pi
-from typing import Union, Callable
+from typing import Union, Callable, Iterable
 import os
 import numpy as np
 
@@ -227,8 +227,21 @@ def color_print_warning(msg, fd=(sys.stdout,)):
     color_print("WARNING", msg, fd=fd)
 
 
-def merge_axes(arr, ax_merge):
-    return None
+def merge_axes(arr: np.ndarray, mergelist: Iterable[int]):
+    ndim = arr.ndim
+    mergelist = np.array(mergelist, dtype=int)
+    assert (np.diff(mergelist) == 1).all()
+    # figure out where the axes would land prior to merge
+    na = np.arange(ndim - len(mergelist), ndim)
+    # move the axes to their desired pos
+    arr = np.moveaxis(arr, mergelist, na)
+    # reshape the array, collapsing final len(mergelist) dimensions
+    newshape = list(arr.shape[0:ndim - len(mergelist)]) + [-1]
+    arr = arr.reshape(newshape)
+    # Now we can move the collapsed axis back into its proper position
+    arr = np.moveaxis(arr, len(newshape)-1, mergelist.min())
+    return arr
+
 
 def bool_array_to_string(arr):
     return "".join(("01"[i] for i in arr))
@@ -242,3 +255,24 @@ def fitargs(f: Callable, kwargs: dict):
     :return: filtered list of kwargs that can be used to call the function
     """
     return {k: kwargs[k] for k in inspect.signature(f).parameters if k in kwargs}
+
+
+if __name__ == "__main__":
+
+    x = np.zeros(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
+    for i in range(5):
+        x[0, 0, 2, i, :] = np.arange(6) + (i*6)
+
+    for i in range(5):
+        x[0, 1, 0, i, :] = -(np.arange(6) + (i*6))
+
+    y = merge_axes(x, [1, 2])
+    print(y.shape)
+    print(y[0, 2, :, :])
+
+    print(y[0, 4, :, :])
+
+    z = merge_axes(x, [2, 3])
+    print(z.shape)
+    print(z[0, 0, 10:15, :])
+    print(z[0, 1, 0:5, :])

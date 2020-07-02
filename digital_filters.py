@@ -71,6 +71,14 @@ def linear_fit(x: np.ndarray, y: np.ndarray, mean=False) -> Tuple[float, float]:
     :param y: values of samples
     :param mean: if True, will report the center of each bin rather than arbitrary shift
     :return: slope angle, constant shift
+    >>> y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
+    >>> print(len(y))
+    >>> x = np.arange(len(y))
+    >>> a, c = linear_fit(x, y, mean=True)
+    >>> print(a, c)
+    >>> plt.figure()
+    >>> plt.plot(x, y, '*')
+    >>> plt.plot(x, (x - x.max() / 2) * a + c, '-', label='linear')
     """
     A = np.vstack([x, np.ones_like(y)]).T
     a, c = np.linalg.lstsq(A, y, rcond=None)[0]
@@ -80,6 +88,28 @@ def linear_fit(x: np.ndarray, y: np.ndarray, mean=False) -> Tuple[float, float]:
 
 
 def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) -> Iterable[Tuple[float, float]]:
+    """
+
+    :param x:
+    :param y:
+    :param pieces:
+    :param mean:
+    :return:
+    >>> y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
+    >>> print(len(y))
+    >>> x = np.arange(len(y))
+    >>> pwl = piecewise_linear_fit(x, y, pieces=3, mean=True)
+    >>> plt.figure()
+    >>> plt.plot(x, y, '*')
+    >>> for i, (rng, line) in enumerate(pwl):
+    >>>       x2 = np.arange(*rng)
+    >>>       print(rng, line)
+    >>>       y2 = (x2 -x2.max())* line[0] + line[1]
+    >>>       plt.plot(x2, y2, 'g-', label=f'piecewise linear {i}')
+    >>> plt.legend()
+    >>>
+    """
+
     L = len(x)
     assert L % pieces == 0, 'data must divide into required number of pieces!'
     sl = L // pieces
@@ -87,7 +117,21 @@ def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) 
         yield (p, p + sl), linear_fit(x[p:p + sl], y[p:p + sl], mean=mean)
 
 
-def binary_transition_smooth(x, xthr, S=5.0):
+def binary_transition_smooth(x: Union[float, np.ndarray], xthr:  float, S: float = 5.0) -> Union[float, np.ndarray]:
+    """
+    Makes a nice transition from 1 to 0 as x increases (sort of inverse sigmoid)
+    :param x: value to map (or array)
+    :param xthr: threshold value at which output is 0.5
+    :param S: Shape factor
+    :return: mapped value (or array)
+    >>>plt.figure()
+    >>>for S in [3,4,5,6]:
+    >>>    plt.plot(binary_transition_smooth(np.arange(500, dtype=float), 150, S=S), label=f'S={S}')
+    >>>plt.xlabel('Value')
+    >>>plt.legend()
+    >>>plt.ylabel('Label value')
+    >>>plt.show(block=True)
+    """
     return 1 - expit(x / xthr * S - S)
 
 
