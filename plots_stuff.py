@@ -340,6 +340,7 @@ def savefig(fig: matplotlib.figure.Figure, title: str,
     :param img_formats: the formats for static rendering
     :param mplfig: Save interactive Matplotlib figure along with images
     """
+    assert isinstance(fig, matplotlib.figure.Figure), "Invalid object passed to savefig"
     for fmt in img_formats:
         fig.savefig(os.path.join(path, title + '.' + fmt), transparent=True, bbox_inches='tight')
 
