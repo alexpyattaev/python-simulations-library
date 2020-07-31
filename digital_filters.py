@@ -1,5 +1,5 @@
 from typing import Tuple, Iterable, Union
-
+import unittest
 import numpy as np
 from scipy.special._ufuncs import expit
 from scipy import signal
@@ -9,6 +9,7 @@ class Stateful_Linear_Filter:
     """A linear filter wrapper for Numpy suitable to process samples one at a time.
     Closely mimics how a real signal processor would work with the data (i.e. not as array but as sequence of floats).
     """
+
     def __init__(self, b: np.ndarray, a: np.ndarray):
         """
         Initialize with output of filter design (b and a arrays)
@@ -117,7 +118,7 @@ def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) 
         yield (p, p + sl), linear_fit(x[p:p + sl], y[p:p + sl], mean=mean)
 
 
-def binary_transition_smooth(x: Union[float, np.ndarray], xthr:  float, S: float = 5.0) -> Union[float, np.ndarray]:
+def binary_transition_smooth(x: Union[float, np.ndarray], xthr: float, S: float = 5.0) -> Union[float, np.ndarray]:
     """
     Makes a nice transition from 1 to 0 as x increases (sort of inverse sigmoid)
     :param x: value to map (or array)
@@ -135,16 +136,81 @@ def binary_transition_smooth(x: Union[float, np.ndarray], xthr:  float, S: float
     return 1 - expit(x / xthr * S - S)
 
 
-if __name__ == "__main__":
-    import numpy as np
-    import matplotlib.pyplot as plt
-    x = np.linspace(0, 5, 100)
-    T = 1.5
-    y = binary_transition_smooth(x,T, S=5.0)
-    plt.plot(x, y, label='smooth transition (regression)')
-    y = x < T
-    plt.plot(x, y, label='binary transition (classification)')
-    plt.xlabel('Distance')
-    plt.ylabel('Proximity')
-    plt.legend()
-    plt.show()
+from typing import Iterable, Union
+
+import numpy as np
+
+
+def rolling_window_lastaxis(a:np.ndarray, window_len:int, skip:int = 1, readonly=True):
+    """Directly taken from Erik Rigtorp's post to numpy-discussion.
+    <http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html>
+    :param readonly: if True (default) returns a view only
+    :param a: array to mess with
+    :param window_len: window of slicing to work with
+    :param skip: how many elements to skip. Set to 1 in order to skip by 1 every time.
+    """
+    if window_len < 1:
+        raise ValueError("`window` must be at least 1.")
+    if window_len > a.shape[-1]:
+        raise ValueError("`window` is too long.")
+    assert skip>=1
+    shape = a.shape[:-1] + ((a.shape[-1] - window_len)//skip+1, window_len)
+    strides = list(a.strides) + [a.strides[-1]]
+    print(1000001, strides)
+    strides[1] *= skip
+    print(1000001, strides)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides, writeable=not readonly)
+
+
+
+def rolling_window(a:np.ndarray, window_shape:Union[int, Iterable[int]], skip:int=1, readonly=True):
+    """
+    Create rolling window views into array a given window shape
+    :param a: array to work on
+    :param window_shape: a tuple of int defining the shape (or single int)
+    :param readonly: if True (default) returns a view only
+    :param skip: how many elements to skip. Set to 1 in order to skip by 1 every time. Only tested for 1-d window.
+    :return: view into array
+    """
+    if not isinstance(window_shape, Iterable):
+        return rolling_window_lastaxis(a, window_shape, skip=skip, readonly=readonly)
+    for i, win in enumerate(window_shape):
+        assert skip == 0, 'Untested!'
+        if win > 1:
+            a = a.swapaxes(i, -1)
+            a = rolling_window_lastaxis(a, win, skip=0, readonly=readonly)
+            a = a.swapaxes(-2, i)
+    return a
+
+
+
+class TestLinearFilters(unittest.TestCase):
+    def test_rolling_window(self):
+        filtsize = 3
+        a = np.arange(10)
+        a = np.tile(a, [2, 1]).T
+        print(a)
+        print(a.shape)
+        a = np.moveaxis(a, 0, -1)
+        b = rolling_window(a, filtsize)
+        print(b.shape)
+        self.assertEqual(b.shape, (2, 8, 3))
+        b = np.moveaxis(b, -1, 0)
+        print(b.shape)
+        print(b[0])
+        print(b[1])
+
+    @unittest.skip("Requires GUI")
+    def test_binary_transition(self):
+        import numpy as np
+        import matplotlib.pyplot as plt
+        x = np.linspace(0, 5, 100)
+        T = 1.5
+        y = binary_transition_smooth(x, T, S=5.0)
+        plt.plot(x, y, label='smooth transition (regression)')
+        y = x < T
+        plt.plot(x, y, label='binary transition (classification)')
+        plt.xlabel('Distance')
+        plt.ylabel('Proximity')
+        plt.legend()
+        plt.show()
