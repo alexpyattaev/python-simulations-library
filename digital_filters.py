@@ -72,14 +72,7 @@ def linear_fit(x: np.ndarray, y: np.ndarray, mean=False) -> Tuple[float, float]:
     :param y: values of samples
     :param mean: if True, will report the center of each bin rather than arbitrary shift
     :return: slope angle, constant shift
-    >>> y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
-    >>> print(len(y))
-    >>> x = np.arange(len(y))
-    >>> a, c = linear_fit(x, y, mean=True)
-    >>> print(a, c)
-    >>> plt.figure()
-    >>> plt.plot(x, y, '*')
-    >>> plt.plot(x, (x - x.max() / 2) * a + c, '-', label='linear')
+
     """
     A = np.vstack([x, np.ones_like(y)]).T
     a, c = np.linalg.lstsq(A, y, rcond=None)[0]
@@ -96,19 +89,7 @@ def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) 
     :param pieces:
     :param mean:
     :return:
-    >>> y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
-    >>> print(len(y))
-    >>> x = np.arange(len(y))
-    >>> pwl = piecewise_linear_fit(x, y, pieces=3, mean=True)
-    >>> plt.figure()
-    >>> plt.plot(x, y, '*')
-    >>> for i, (rng, line) in enumerate(pwl):
-    >>>       x2 = np.arange(*rng)
-    >>>       print(rng, line)
-    >>>       y2 = (x2 -x2.max())* line[0] + line[1]
-    >>>       plt.plot(x2, y2, 'g-', label=f'piecewise linear {i}')
-    >>> plt.legend()
-    >>>
+
     """
 
     L = len(x)
@@ -125,13 +106,7 @@ def binary_transition_smooth(x: Union[float, np.ndarray], xthr: float, S: float 
     :param xthr: threshold value at which output is 0.5
     :param S: Shape factor
     :return: mapped value (or array)
-    >>>plt.figure()
-    >>>for S in [3,4,5,6]:
-    >>>    plt.plot(binary_transition_smooth(np.arange(500, dtype=float), 150, S=S), label=f'S={S}')
-    >>>plt.xlabel('Value')
-    >>>plt.legend()
-    >>>plt.ylabel('Label value')
-    >>>plt.show(block=True)
+
     """
     return 1 - expit(x / xthr * S - S)
 
@@ -141,7 +116,7 @@ from typing import Iterable, Union
 import numpy as np
 
 
-def rolling_window_lastaxis(a:np.ndarray, window_len:int, skip:int = 1, readonly=True):
+def rolling_window_lastaxis(a: np.ndarray, window_len: int, skip: int = 1, readonly=True):
     """Directly taken from Erik Rigtorp's post to numpy-discussion.
     <http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html>
     :param readonly: if True (default) returns a view only
@@ -153,17 +128,17 @@ def rolling_window_lastaxis(a:np.ndarray, window_len:int, skip:int = 1, readonly
         raise ValueError("`window` must be at least 1.")
     if window_len > a.shape[-1]:
         raise ValueError("`window` is too long.")
-    assert skip>=1
-    shape = a.shape[:-1] + ((a.shape[-1] - window_len)//skip+1, window_len)
+    assert skip >= 1
+    shape = a.shape[:-1] + ((a.shape[-1] - window_len) // skip + 1, window_len)
+    print("new shape:", shape)
     strides = list(a.strides) + [a.strides[-1]]
-    print(1000001, strides)
-    strides[1] *= skip
-    print(1000001, strides)
+    #print(1000001, strides)
+    strides[-2] *= skip
+    #print(1000001, strides)
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides, writeable=not readonly)
 
 
-
-def rolling_window(a:np.ndarray, window_shape:Union[int, Iterable[int]], skip:int=1, readonly=True):
+def rolling_window(a: np.ndarray, window_shape: Union[int, Iterable[int]], skip: int = 1, readonly=True):
     """
     Create rolling window views into array a given window shape
     :param a: array to work on
@@ -183,26 +158,34 @@ def rolling_window(a:np.ndarray, window_shape:Union[int, Iterable[int]], skip:in
     return a
 
 
-
 class TestLinearFilters(unittest.TestCase):
     def test_rolling_window(self):
         filtsize = 3
         a = np.arange(10)
         a = np.tile(a, [2, 1]).T
         print(a)
-        print(a.shape)
+
         a = np.moveaxis(a, 0, -1)
+        print('before',a.shape)
         b = rolling_window(a, filtsize)
-        print(b.shape)
+        print('after',b.shape)
         self.assertEqual(b.shape, (2, 8, 3))
-        b = np.moveaxis(b, -1, 0)
+        b = np.moveaxis(b, [-2, -1], [0, 1])
         print(b.shape)
         print(b[0])
         print(b[1])
 
+        b = rolling_window(a, filtsize, skip=2)
+        b = np.moveaxis(b, [-2, -1], [0, 1])
+        print('after2', b.shape)
+        print(b[0])
+        print(b[1])
+
+        print(b[-2])
+        print(b[-1])
+
     @unittest.skip("Requires GUI")
     def test_binary_transition(self):
-        import numpy as np
         import matplotlib.pyplot as plt
         x = np.linspace(0, 5, 100)
         T = 1.5
@@ -213,4 +196,40 @@ class TestLinearFilters(unittest.TestCase):
         plt.xlabel('Distance')
         plt.ylabel('Proximity')
         plt.legend()
+
+        plt.figure()
+        for S in [3, 4, 5, 6]:
+            plt.plot(binary_transition_smooth(np.arange(500, dtype=float), 150, S=S), label=f'S={S}')
+        plt.xlabel('Value')
+        plt.legend()
+        plt.ylabel('Label value')
+        plt.show(block=True)
         plt.show()
+
+    @unittest.skip("Requires GUI")
+    def test_pcw_linear_fit(self):
+        import matplotlib.pyplot as plt
+        y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
+        print(len(y))
+        x = np.arange(len(y))
+        pwl = piecewise_linear_fit(x, y, pieces=3, mean=True)
+        plt.figure()
+        plt.plot(x, y, '*')
+        for i, (rng, line) in enumerate(pwl):
+             x2 = np.arange(*rng)
+        print(rng, line)
+        y2 = (x2 - x2.max()) * line[0] + line[1]
+        plt.plot(x2, y2, 'g-', label=f'piecewise linear {i}')
+        plt.legend()
+
+    @unittest.skip("Requires GUI")
+    def test_linear_fit(self):
+        import matplotlib.pyplot as plt
+        y = np.array([1, 4, 5, 6, 8, 9, 10, 7, 6, 5, 4, 2, 2, 7, 10, 16, 18, 23, 26, 32, 15], dtype=float)
+        print(len(y))
+        x = np.arange(len(y))
+        a, c = linear_fit(x, y, mean=True)
+        print(a, c)
+        plt.figure()
+        plt.plot(x, y, '*')
+        plt.plot(x, (x - x.max() / 2) * a + c, '-', label='linear')
