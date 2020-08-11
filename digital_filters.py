@@ -130,7 +130,7 @@ def rolling_window_lastaxis(a: np.ndarray, window_len: int, skip: int = 1, reado
         raise ValueError("`window` is too long.")
     assert skip >= 1
     shape = a.shape[:-1] + ((a.shape[-1] - window_len) // skip + 1, window_len)
-    print("new shape:", shape)
+    #print("new shape:", shape)
     strides = list(a.strides) + [a.strides[-1]]
     #print(1000001, strides)
     strides[-2] *= skip
