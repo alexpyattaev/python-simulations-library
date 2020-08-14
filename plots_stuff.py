@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import List, Union, Callable, Tuple
+from typing import List, Union, Callable, Tuple, Iterable
 
 import numpy as np
 from matplotlib import cycler
@@ -328,7 +328,7 @@ default_plot_path = "./plots"  # The place where all plots will be dropped by de
 
 def savefig(fig: matplotlib.figure.Figure, title: str,
             path: str = default_plot_path,
-            img_formats: Tuple[str, ...] = ('svg', 'png'), mplfig=False) -> None:
+            img_formats: Iterable[str] = ('svg', 'png'), mplfig=False) -> None:
     """
     Save a matplotlib figure into variety of formats.
 
