@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # Script LGPL from https://raw.githubusercontent.com/epage/PythonUtils/master/util/linux.py
 # Script modified by Alex Pyattaev
-
+import itertools
 import os
-from debug_log import warn
+import warnings
+from collections import Iterable
+from typing import Tuple
 
 try:
     from xdg import BaseDirectory as _BaseDirectory
@@ -13,6 +15,23 @@ except ImportError:
     BaseDirectory = None
 
 _libc = None
+
+
+def find_free_filename(dir: str, fname: str, pattern_sym="#", try_num: Iterable = None) -> Tuple[str, object]:
+    assert pattern_sym in fname
+    if not isinstance(try_num, Iterable):
+        try_num = itertools.count()
+
+    files = os.listdir(dir)
+
+    for i in try_num:
+        ftry = fname.replace(pattern_sym, f"{i}")
+        if ftry in files:
+            continue
+        else:
+            return ftry, i
+    else:
+        raise FileExistsError("Could ont find suitable name!!")
 
 
 def set_process_name(name):
@@ -29,7 +48,7 @@ def set_process_name(name):
         _libc.prctl(15, name, 0, 0, 0)
         return True
     except Exception as e:
-        warn('Unable to set processName: %s" % e')
+        warnings.warn('Unable to set processName: %s" % e')
         return False
 
 
