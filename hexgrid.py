@@ -94,9 +94,9 @@ def pos_around_hex(x1, y1, rmin, r_max):
 
     ind = True
     while ind:
-        x = rng.uniform(0, 3)
+        x = rng.randint(0, 3)
         (v1, v2) = (vectors[x], vectors[(x + 1) % 3])
-        (x, y) = (rng(), rng())
+        (x, y) = (rng.rand(), rng.rand())
         val = np.array([x * v1[0] + y * v2[0], x * v1[1] + y * v2[1]])
         if norm(np.array(val)-np.array([x,y])) > rmin:
             ind = False
