@@ -123,8 +123,7 @@ def pos_around_hex(x1, y1, r_min, r_max, num_points=1):
         W = np.random.rand(2)
 
         # Transform the square onto the basis formed by sector in V
-        val = np.array([np.dot(W, V[:, 0]), np.dot(W, V[:,1])])
-
+        val = np.dot(W,V)
         # check that we are not too close to the center
         if norm(val) > r_min:
             num_points -= 1
