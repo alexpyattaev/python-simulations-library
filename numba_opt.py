@@ -5,7 +5,7 @@ try:
     if not numba:
         raise ImportError
     import numba
-    print("Numba support enabled")
+    #print("Numba support enabled")
     numba_available = True
     jit_hardcore = functools.partial(numba.jit, nopython=True, nogil=True, cache=True)
     jit = functools.partial(numba.jit, forceobj=True, nopython=False, cache=True)
@@ -18,7 +18,7 @@ try:
 
 except ImportError:
     numba = None
-    print("Numba support not available")
+    #print("Numba support not available")
     numba_available = False
     int64 = int
     int16 = int
