@@ -46,13 +46,13 @@ def print_event_accuracy(CM):
     """
     assert CM[TRUE_NEGATIVE] == 0, 'Provided matrix is not event-accuracy matrix'
     total_events = CM[ACTUAL_POSITIVES].sum()
-    ans = f'Total events {total_events}; '
+    ans = f'Total events, {total_events}, '
     if total_events > 0:
-        ans += f'detected {CM[TRUE_POSITIVE]}({CM[TRUE_POSITIVE] / total_events:3.4}), '
-        ans += f'missed {CM[FALSE_NEGATIVE]}({CM[FALSE_NEGATIVE] / total_events:3.4}), '
-        ans += f'false alarms {CM[FALSE_POSITIVE]}({CM[FALSE_POSITIVE] / total_events:3.4}) '
+        ans += f'detected, {CM[TRUE_POSITIVE]}({CM[TRUE_POSITIVE] / total_events:3.4}), '
+        ans += f'missed, {CM[FALSE_NEGATIVE]}({CM[FALSE_NEGATIVE] / total_events:3.4}), '
+        ans += f'false alarms, {CM[FALSE_POSITIVE]}({CM[FALSE_POSITIVE] / total_events:3.4}) '
     else:
-        ans += f'false alarms {CM[FALSE_POSITIVE]} (no valid events for ratio)'
+        ans += f'false alarms, {CM[FALSE_POSITIVE]}, (no valid events for ratio)'
 
     print(ans)
     return ans
