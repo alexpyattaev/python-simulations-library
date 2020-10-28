@@ -3,9 +3,12 @@
 # Script modified by Alex Pyattaev
 import itertools
 import os
+import unittest
 import warnings
 from collections import Iterable
 from typing import Tuple
+
+import psutil
 
 try:
     from xdg import BaseDirectory as _BaseDirectory
@@ -117,3 +120,23 @@ def safe_remove(target):
             pass
         else:
             raise e
+
+
+def check_ram(threshold_percent=5, exit_on_failure=True):
+    availram = psutil.virtual_memory().available * 100 / psutil.virtual_memory().total
+    if availram < threshold_percent:
+        print(f"OUT OF RAM {availram}% left, threshold {threshold_percent}%.")
+        if exit_on_failure:
+            exit(1)
+        else:
+            raise MemoryError("System memory low")
+
+
+class Test_lib_linux(unittest.TestCase):
+    def test_check_ram(self):
+        with self.assertRaises(MemoryError):
+            check_ram(threshold_percent=100, exit_on_failure=False)
+
+
+if __name__ == '__main__':
+    unittest.main()
