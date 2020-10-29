@@ -100,7 +100,6 @@ def calc_output_bias(all_labels, num_cat) -> Tuple[np.ndarray, np.ndarray]:
 
     initial_bias = np.zeros(num_cat, dtype=float)
     class_weights = np.ones(num_cat, dtype=float)
-    print("AAAAAA", all_labels.shape, num_cat)
     if num_cat == 1:
         all_labels = np.expand_dims(all_labels, -1)
     for ldim in range(num_cat):
