@@ -81,14 +81,33 @@ def linear_fit(x: np.ndarray, y: np.ndarray, mean=False) -> Tuple[float, float]:
     return a, c
 
 
-def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int, mean=False) -> Iterable[Tuple[float, float]]:
-    """
+def rle(inarray):
+    """ run length encoding. Partial credit to R rle function.
+        Multi datatype arrays catered for including non Numpy
+        returns: tuple (runlengths, startpositions, values) """
+    ia = np.asarray(inarray)  # force numpy
+    n = len(ia)
+    if n == 0:
+        return None, None, None
+    else:
+        y = np.array(ia[1:] != ia[:-1])  # pairwise unequal (string safe)
+        i = np.append(np.where(y), n - 1)  # must include last element posi
+        z = np.diff(np.append(-1, i))  # run lengths
+        p = np.cumsum(np.append(0, z))[:-1]  # positions
+        return z, p, ia[i]
 
-    :param x:
-    :param y:
-    :param pieces:
-    :param mean:
-    :return:
+
+def piecewise_linear_fit(x: np.ndarray, y: np.ndarray, pieces: int,
+                         mean=False) -> Iterable[Tuple[Tuple[int, int], Tuple[float, float]]]:
+    """
+    Do a piecewise linear fit of a given set of points.
+    See also linear_fit.
+
+    :param x: x positions of points
+    :param y: y positions of points
+    :param pieces: number of linear segments
+    :param mean: where to sample each segment (mean will sample in the middle), see linear_fit for detail.
+    :return: list of tuples (range, coeffs)
 
     """
 
@@ -111,11 +130,6 @@ def binary_transition_smooth(x: Union[float, np.ndarray], xthr: float, S: float 
     return 1 - expit(x / xthr * S - S)
 
 
-from typing import Iterable, Union
-
-import numpy as np
-
-
 def rolling_window_lastaxis(a: np.ndarray, window_len: int, skip: int = 1, readonly=True):
     """Directly taken from Erik Rigtorp's post to numpy-discussion.
     <http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html>
@@ -130,11 +144,11 @@ def rolling_window_lastaxis(a: np.ndarray, window_len: int, skip: int = 1, reado
         raise ValueError(f"`window` is too long, got {window_len} max is {a.shape[-1]}")
     assert skip >= 1
     shape = a.shape[:-1] + ((a.shape[-1] - window_len) // skip + 1, window_len)
-    #print("new shape:", shape)
+    # print("new shape:", shape)
     strides = list(a.strides) + [a.strides[-1]]
-    #print(1000001, strides)
+    # print(1000001, strides)
     strides[-2] *= skip
-    #print(1000001, strides)
+    # print(1000001, strides)
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides, writeable=not readonly)
 
 
@@ -166,9 +180,9 @@ class TestLinearFilters(unittest.TestCase):
         print(a)
 
         a = np.moveaxis(a, 0, -1)
-        print('before',a.shape)
+        print('before', a.shape)
         b = rolling_window(a, filtsize)
-        print('after',b.shape)
+        print('after', b.shape)
         self.assertEqual(b.shape, (2, 8, 3))
         b = np.moveaxis(b, [-2, -1], [0, 1])
         print(b.shape)
@@ -183,6 +197,20 @@ class TestLinearFilters(unittest.TestCase):
 
         print(b[-2])
         print(b[-1])
+
+    def test_rle(self):
+        t = np.zeros(50)
+        t[20:30] = 1
+
+        t[35:45] = 1
+
+        tt = np.array(rle(t > 0))
+
+        ans = np.array([[20, 10, 5, 10, 5],
+                        [0, 20, 30, 35, 45],
+                        [0, 1, 0, 1, 0]])
+
+        self.assertTrue((ans == tt).all())
 
     @unittest.skip("Requires GUI")
     def test_binary_transition(self):
@@ -206,6 +234,7 @@ class TestLinearFilters(unittest.TestCase):
         plt.show(block=True)
         plt.show()
 
+    # noinspection PyArgumentList
     @unittest.skip("Requires GUI")
     def test_pcw_linear_fit(self):
         import matplotlib.pyplot as plt
@@ -216,10 +245,10 @@ class TestLinearFilters(unittest.TestCase):
         plt.figure()
         plt.plot(x, y, '*')
         for i, (rng, line) in enumerate(pwl):
-             x2 = np.arange(*rng)
-        print(rng, line)
-        y2 = (x2 - x2.max()) * line[0] + line[1]
-        plt.plot(x2, y2, 'g-', label=f'piecewise linear {i}')
+            x2 = np.arange(*rng)
+            print(rng, line)
+            y2 = (x2 - x2.max(initial=-1999999)) * line[0] + line[1]
+            plt.plot(x2, y2, 'g-', label=f'piecewise linear {i}')
         plt.legend()
 
     @unittest.skip("Requires GUI")
@@ -232,20 +261,4 @@ class TestLinearFilters(unittest.TestCase):
         print(a, c)
         plt.figure()
         plt.plot(x, y, '*')
-        plt.plot(x, (x - x.max() / 2) * a + c, '-', label='linear')
-
-
-def rle(inarray):
-    """ run length encoding. Partial credit to R rle function.
-        Multi datatype arrays catered for including non Numpy
-        returns: tuple (runlengths, startpositions, values) """
-    ia = np.asarray(inarray)  # force numpy
-    n = len(ia)
-    if n == 0:
-        return None, None, None
-    else:
-        y = np.array(ia[1:] != ia[:-1])  # pairwise unequal (string safe)
-        i = np.append(np.where(y), n - 1)  # must include last element posi
-        z = np.diff(np.append(-1, i))  # run lengths
-        p = np.cumsum(np.append(0, z))[:-1]  # positions
-        return z, p, ia[i]
+        plt.plot(x, (x - x.max(initial=-10000) / 2) * a + c, '-', label='linear')

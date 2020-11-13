@@ -15,9 +15,6 @@ from tensorflow.python.keras.callbacks import Callback
 from lib.digital_filters import piecewise_linear_fit
 
 
-
-
-
 def categorical_slopes(x: np.ndarray, y: np.ndarray, pieces: int, val_bins, slope_bins):
     pwl = piecewise_linear_fit(x, y, pieces=pieces, mean=True)
     ans_val = np.zeros(pieces, dtype=int)
@@ -59,91 +56,54 @@ def load_tensorflow_model(coeffs: str, model_skel: Union[tf.keras.models.Model, 
     return model
 
 
+class TF_Imbalance_Abort_Callback(Callback):
+    """Abort training when strange patterns in TP/TN balance is found"""
 
-class EarlyStopping(Callback):
-  """Abort training when strange patterns in TP/TN balance is found"""
+    def __init__(self, monitor=('TP', 'TN'), patience=5, balance_rtol=2):
+        Callback.__init__(self)
 
-  def __init__(self,
-               monitor=('TP', 'TN'),
-               min_delta=0,
-               patience=0,
-               verbose=0,
-               mode='auto',
-               baseline=None,
-               restore_best_weights=False):
-    super(EarlyStopping, self).__init__()
+        self.monitor = monitor
+        assert len(monitor) == 2, 'must observe exactly 2 values at a time'
+        self.patience = patience
+        self.balance_rtol = balance_rtol
 
-    self.monitor = monitor
-    self.patience = patience
-    self.verbose = verbose
-    self.baseline = baseline
-    self.min_delta = abs(min_delta)
-    self.wait = 0
-    self.stopped_epoch = 0
-    self.restore_best_weights = restore_best_weights
-    self.best_weights = None
+        self.wait = 0
+        self.stopped_epoch = 0
+        self.aborted = False
 
-    if mode not in ['auto', 'min', 'max']:
-      logging.warning('EarlyStopping mode %s is unknown, '
-                      'fallback to auto mode.', mode)
-      mode = 'auto'
+    def on_train_begin(self, logs=None):
+        # Allow instances to be re-used
+        self.aborted = False
+        self.wait = 0
 
-    if mode == 'min':
-      self.monitor_op = np.less
-    elif mode == 'max':
-      self.monitor_op = np.greater
-    else:
-      if 'acc' in self.monitor:
-        self.monitor_op = np.greater
-      else:
-        self.monitor_op = np.less
+    def on_epoch_end(self, epoch, logs=None):
+        current = self.get_monitor_value(logs)
+        total = current[0] + current[1]
+        if total > 0 and np.abs(current[0] - current[1]) / total > self.balance_rtol:
+            self.wait += 1
+            if self.wait >= self.patience:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+                print("Performance imbalance detected, aborting training!")
+            else:
+                print(f"Performance imbalance detected, wait {self.patience - self.wait} epochs before abort")
+        else:
+            self.wait = 0
 
-    if self.monitor_op == np.greater:
-      self.min_delta *= 1
-    else:
-      self.min_delta *= -1
+    def on_train_end(self, logs=None):
+        if self.stopped_epoch > 0:
+            print('Epoch %05d: ImbalanceAbort' % (self.stopped_epoch + 1))
 
-  def on_train_begin(self, logs=None):
-    # Allow instances to be re-used
-    self.wait = 0
-    self.stopped_epoch = 0
-    if self.baseline is not None:
-      self.best = self.baseline
-    else:
-      self.best = np.Inf if self.monitor_op == np.less else -np.Inf
-    self.best_weights = None
+    def get_monitor_value(self, logs):
+        logs = logs or {}
+        monitor_value = logs.get(self.monitor)
+        if monitor_value is None:
+            print('ImbalanceAbort conditioned on metric `%s` '
+                            'which is not available. Available metrics are: %s',
+                            self.monitor, ','.join(list(logs.keys())))
+            raise RuntimeError("Metric not found")
+        return monitor_value
 
-  def on_epoch_end(self, epoch, logs=None):
-    current = self.get_monitor_value(logs)
-    if current is None:
-      return
-    if self.monitor_op(current - self.min_delta, self.best):
-      self.best = current
-      self.wait = 0
-      if self.restore_best_weights:
-        self.best_weights = self.model.get_weights()
-    else:
-      self.wait += 1
-      if self.wait >= self.patience:
-        self.stopped_epoch = epoch
-        self.model.stop_training = True
-        if self.restore_best_weights:
-          if self.verbose > 0:
-            print('Restoring model weights from the end of the best epoch.')
-          self.model.set_weights(self.best_weights)
-
-  def on_train_end(self, logs=None):
-    if self.stopped_epoch > 0 and self.verbose > 0:
-      print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
-
-  def get_monitor_value(self, logs):
-    logs = logs or {}
-    monitor_value = logs.get(self.monitor)
-    if monitor_value is None:
-      logging.warning('Early stopping conditioned on metric `%s` '
-                      'which is not available. Available metrics are: %s',
-                      self.monitor, ','.join(list(logs.keys())))
-    return monitor_value
 
 class TF_Reset_States_Callback(Callback):
     def __init__(self, batches_in_msmt: Union[int, Iterable[int]]):
@@ -221,7 +181,6 @@ def plot_histories(histories):
     return f
 
 
-
 def plot_CNN_layers(model):
     # summarize filter shapes
     figs = []
@@ -236,9 +195,9 @@ def plot_CNN_layers(model):
         f_min, f_max = filters.min(), filters.max()
         filters = (filters - f_min) / (f_max - f_min)
         n_filters = filters.shape[-1]
-        #exit()
+        # exit()
         print("n_filters", n_filters)
-        fig, axes = plt.subplots(2, n_filters//2)
+        fig, axes = plt.subplots(2, n_filters // 2)
         axes = axes.flatten()
         for ax, i in zip(axes, range(n_filters)):
             # get the filter
@@ -283,7 +242,7 @@ class Test_ml_utils(unittest.TestCase):
         bias, weight = calc_output_bias(all_labels, 2)
 
         self.assertAlmostEqual(bias[0], 0, delta=0.1)
-        self.assertAlmostEqual(bias[1], np.log(1/3), delta=0.1)
+        self.assertAlmostEqual(bias[1], np.log(1 / 3), delta=0.1)
 
         self.assertAlmostEqual(weight[0], 1, delta=0.1)
         self.assertAlmostEqual(weight[1], 0.75, delta=0.1)
@@ -311,8 +270,6 @@ class Test_ml_utils(unittest.TestCase):
         print("ranges:", cat_r)
         print("slopes:", cat_sl)
         plt.show(block=True)
-
-
 
 
 if __name__ == '__main__':
