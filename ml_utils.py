@@ -149,7 +149,7 @@ def validate_convergence(history, min_epochs=3, min_loss_improv=3.0, val_loss_rt
     val_loss_start = history['val_loss'][0]
     val_loss_improv = val_loss_start / val_loss_end
 
-    if loss_improv < min_loss_improv or val_loss_improv < min_loss_improv:
+    if loss_improv < min_loss_improv and val_loss_improv < min_loss_improv:
         print(f"Model performance is bad {loss_end}/{val_loss_end} at final epoch vs {loss_start}/{val_loss_start} at epoch 1")
         issues['Final loss too small'] = {'loss_start': loss_start, "loss_end": loss_end,
                                           "val_loss_end": val_loss_end, "val_loss_start": val_loss_start}
