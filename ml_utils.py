@@ -59,7 +59,7 @@ def load_tensorflow_model(coeffs: str, model_skel: Union[tf.keras.models.Model, 
 class TF_Imbalance_Abort_Callback(Callback):
     """Abort training when strange patterns in TP/TN balance is found"""
 
-    def __init__(self, monitor=('TP', 'TN'), patience=5, balance_rtol=2):
+    def __init__(self, monitor=('TP', 'TN'), patience=5, balance_rtol=0.5):
         Callback.__init__(self)
 
         self.monitor = monitor
@@ -77,9 +77,15 @@ class TF_Imbalance_Abort_Callback(Callback):
         self.wait = 0
 
     def on_epoch_end(self, epoch, logs=None):
-        current = self.get_monitor_value(logs)
-        total = current[0] + current[1]
-        if total > 0 and np.abs(current[0] - current[1]) / total > self.balance_rtol:
+        logs = logs or {}
+        vals = [logs.get(m) for m in self.monitor]
+        if any(map(lambda a: a is None, vals)):
+            print(f'ImbalanceAbort conditioned on metrics {self.monitor} which are not available.'
+                  f'Available metrics are: ', ','.join(list(logs.keys())))
+            raise RuntimeError("Metric not found")
+
+        total = sum(vals)
+        if total and np.abs(vals[0] - vals[1]) / total > self.balance_rtol:
             self.wait += 1
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
@@ -94,15 +100,7 @@ class TF_Imbalance_Abort_Callback(Callback):
         if self.stopped_epoch > 0:
             print('Epoch %05d: ImbalanceAbort' % (self.stopped_epoch + 1))
 
-    def get_monitor_value(self, logs):
-        logs = logs or {}
-        monitor_value = logs.get(self.monitor)
-        if monitor_value is None:
-            print('ImbalanceAbort conditioned on metric `%s` '
-                            'which is not available. Available metrics are: %s',
-                            self.monitor, ','.join(list(logs.keys())))
-            raise RuntimeError("Metric not found")
-        return monitor_value
+
 
 
 class TF_Reset_States_Callback(Callback):
@@ -134,6 +132,35 @@ class TF_Reset_States_Callback(Callback):
     def on_train_begin(self, logs=None):
         pass
         # print("TRAINING STARTS")
+
+
+def validate_convergence(history, min_epochs=3, min_loss_improv=3.0, val_loss_rtol=1.0):
+    issues = {}
+    epochs = len(history['loss'])
+    if epochs < min_epochs:
+        print(f"Model converged too quickly in {epochs} epochs, expected at least {min_epochs}")
+        issues['Converged too quickly'] = epochs
+
+    loss_start = history['loss'][0]
+    loss_end = history['loss'][-1]
+    loss_improv = loss_start / loss_end
+
+    val_loss_end = history['val_loss'][-1]
+    val_loss_start = history['val_loss'][0]
+    val_loss_improv = val_loss_start / val_loss_end
+
+    if loss_improv < min_loss_improv or val_loss_improv < min_loss_improv:
+        print(f"Model performance is bad {loss_end}/{val_loss_end} at final epoch vs {loss_start}/{val_loss_start} at epoch 1")
+        issues['Final loss too small'] = {'loss_start': loss_start, "loss_end": loss_end,
+                                          "val_loss_end": val_loss_end, "val_loss_start": val_loss_start}
+
+    if np.allclose(val_loss_end, loss_end, rtol=val_loss_rtol):
+        print(f"Model validation loss {val_loss_end} does not match loss {loss_end} for training set")
+        issues['Divergence with validation set'] = {"val_loss_end": val_loss_end, "loss_end": loss_end}
+
+    if issues:
+        issues['epochs'] = epochs
+    return issues
 
 
 def calc_output_bias(all_labels, num_cat) -> Tuple[np.ndarray, np.ndarray]:
