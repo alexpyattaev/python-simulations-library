@@ -154,7 +154,8 @@ def validate_convergence(history, min_epochs=3, min_loss_improv=3.0, val_loss_rt
         issues['Final loss too small'] = {'loss_start': loss_start, "loss_end": loss_end,
                                           "val_loss_end": val_loss_end, "val_loss_start": val_loss_start}
 
-    if np.allclose(val_loss_end, loss_end, rtol=val_loss_rtol):
+    
+    if not np.allclose(val_loss_end, loss_end, rtol=val_loss_rtol):
         print(f"Model validation loss {val_loss_end} does not match loss {loss_end} for training set")
         issues['Divergence with validation set'] = {"val_loss_end": val_loss_end, "loss_end": loss_end}
 
