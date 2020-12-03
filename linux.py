@@ -132,6 +132,12 @@ def check_ram(threshold_percent=5, exit_on_failure=True):
             raise MemoryError("System memory low")
 
 
+def signal_pdb(sig, frame):
+    import pdb
+    print(f"Caught signal {sig} at frame {frame} for PDB, starting trace")
+    pdb.Pdb().set_trace(frame)
+
+
 class Test_lib_linux(unittest.TestCase):
     def test_check_ram(self):
         with self.assertRaises(MemoryError):
