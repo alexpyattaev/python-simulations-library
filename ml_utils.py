@@ -4,12 +4,13 @@ ML related utility functions for data conditioning (mostly tensorflow)
 import itertools
 import os
 import unittest
-from typing import Union, Iterable, Tuple
+from typing import Union, Iterable, Tuple, List
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.python.keras.callbacks import Callback
 
 from lib.digital_filters import piecewise_linear_fit
@@ -101,8 +102,6 @@ class TF_Imbalance_Abort_Callback(Callback):
             print('Epoch %05d: ImbalanceAbort' % (self.stopped_epoch + 1))
 
 
-
-
 class TF_Reset_States_Callback(Callback):
     def __init__(self, batches_in_msmt: Union[int, Iterable[int]]):
         Callback.__init__(self)
@@ -150,11 +149,11 @@ def validate_convergence(history, min_epochs=3, min_loss_improv=3.0, val_loss_rt
     val_loss_improv = val_loss_start / val_loss_end
 
     if loss_improv < min_loss_improv and val_loss_improv < min_loss_improv:
-        print(f"Model performance is bad {loss_end}/{val_loss_end} at final epoch vs {loss_start}/{val_loss_start} at epoch 1")
+        print(
+            f"Model performance is bad {loss_end}/{val_loss_end} at final epoch vs {loss_start}/{val_loss_start} at epoch 1")
         issues['Final loss too small'] = {'loss_start': loss_start, "loss_end": loss_end,
                                           "val_loss_end": val_loss_end, "val_loss_start": val_loss_start}
 
-    
     if not np.allclose(val_loss_end, loss_end, rtol=val_loss_rtol):
         print(f"Model validation loss {val_loss_end} does not match loss {loss_end} for training set")
         issues['Divergence with validation set'] = {"val_loss_end": val_loss_end, "loss_end": loss_end}
@@ -262,6 +261,80 @@ def plot_CLR_stats(h: dict, LR_bounds: list = None, ax=None):
     return f
 
 
+def stateful_LSTM_batch_reordering(samples_per_sequence: List[int], batch_size: int,
+                                   reverse=False) -> np.ndarray:
+    """
+    Produces reordering sequence for stateful LSTM batched training in Tensorflow.
+
+    Generally stateful LSTM networks consume inputs in sequence, for batched learning it is more complicated
+    LSTM batch in Tensorflow acts as multiple threads, each eating its own portion of input data. All batches should
+    be consuming the
+
+    The specific order of input data feed is calculated here to ensure the individual batched processes get the right
+     data.
+
+    One dataset with 8 timesteps gets split into 2 interleaved sequences starting at 0 and 4
+    >>>stateful_LSTM_batch_reordering([8], 2)
+    array([0, 4, 1, 5, 2, 6, 3, 7])
+
+    Two datasets in blocks of 4 timesteps each, get fed as interleaved sequences
+    >>> stateful_LSTM_batch_reordering([4,4], 2)
+    array([ 0,  2,  1,  3,  4,  8,  5,  9,  6, 10,  7, 11])
+
+
+
+    >>> stateful_LSTM_batch_reordering([4,8], 4)
+    array([ 0,  1,  2,  3,  4,  6,  8, 10,  5,  7,  9, 11])
+
+
+    >>> stateful_LSTM_batch_reordering([4,8], 2)
+    array([ 0,  2,  1,  3,  4,  8,  5,  9,  6, 10,  7, 11])
+
+
+    :param samples_per_sequence: number of training samples per sequence (each sample is one BPTT slice)
+    :param batch_size: number of slices in training at once
+    :param reverse: if reversing sequence must be produced instead of forward sequence
+    :return: numpy array of indices at which input must be sampled in order to get correct feed order.
+    """
+    assert len(samples_per_sequence) > 0
+    assert batch_size > 1
+    ans = []
+    cnt = 0
+    for j, sps in enumerate(samples_per_sequence):
+        if not reverse:
+            seq_ordering = np.arange(sps).reshape([batch_size, -1]).flatten(order='F')
+        else:
+            seq_ordering = np.arange(sps).reshape([-1, batch_size]).flatten(order='F')
+        ans.append(seq_ordering + cnt)
+        cnt += len(seq_ordering)
+    tiling = np.concatenate(ans)
+    return tiling
+
+
+def stateful_LSTM_batch_reverse_reordering(samples_per_sequence: List[int], batch_size: int):
+    """
+    Reverse of stateful_LSTM_batch_reordering
+
+    useful after training to run inference in batched mode (should be applied to model output in this case)
+    :param samples_per_sequence: number of training samples per sequence (each sample is one BPTT slice)
+    :param batch_size: number of slices in training at once
+    :param batch_size:
+    :return:
+    """
+    return stateful_LSTM_batch_reordering(samples_per_sequence, batch_size, True)
+
+
+def time_distributed_dense_layer(n, **kwargs):
+    """
+    Creates a time distributed Dense layer
+    :param n:
+    :param kwargs:
+    :return:
+    """
+    layer = keras.layers.Dense(n, **kwargs)
+    return keras.layers.TimeDistributed(layer, name=layer.name + "_TD")
+
+
 class Test_ml_utils(unittest.TestCase):
     def test_output_bias(self):
         all_labels = np.stack([np.random.randint(0, 2, [10000]),
@@ -301,4 +374,7 @@ class Test_ml_utils(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    import doctest
+
     unittest.main()
+    doctest.testmod()

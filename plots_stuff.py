@@ -1,9 +1,11 @@
 import os
 import pickle
+from itertools import repeat
 from typing import List, Union, Callable, Tuple, Iterable
 
 import numpy as np
 from matplotlib import cycler
+from matplotlib.pyplot import subplots, show
 from scipy.signal import get_window
 from scipy.interpolate import interp1d
 import matplotlib as mpl
@@ -15,6 +17,7 @@ import mpl_toolkits
 import mpl_toolkits.mplot3d
 
 plot_opts_imshow_waterfall = dict(aspect="auto", interpolation="nearest", origin='lower')
+
 
 def matplotlib_IEEE_style():
     """IEEE style by Olga Galinina. Applies to all figures that will be created"""
@@ -284,34 +287,51 @@ def plot_var_thick(x, wmin: float = 0.5, wmax: float = 2, **style):
         raise NotImplementedError("unsupported dimension {}".format(D))
 
 
-def show_matrix(*args, vmin=None, vmax=None, block=True, row_break=5,sharex='none',sharey='none', **kwargs):
-    import matplotlib.pyplot as plt
+def show_matrix(*args, vmin=None, vmax=None, block=True, row_break=5, sharex='none', sharey='none',
+                colormaps=repeat('viridis'),
+                **kwargs) -> Tuple[matplotlib.figure.Figure, Iterable[matplotlib.figure.Axes]]:
+    """
+
+    :param args:
+    :param vmin:
+    :param vmax:
+    :param block:
+    :param row_break:
+    :param sharex:
+    :param sharey:
+    :param colormaps:
+    :param kwargs:
+    :return:
+    """
     kwargs.update({f"arg {i}": a for i, a in enumerate(args)})
+    colormaps = iter(colormaps)
 
     N_cols = len(kwargs)
     N_rows = N_cols // row_break + 1
     if N_rows > 1:
         N_cols = row_break
 
-    f, axs = plt.subplots(N_rows, N_cols, squeeze=False, sharex=sharex, sharey=sharey)
+    f, axs = subplots(N_rows, N_cols, squeeze=False, sharex=sharex, sharey=sharey)
     for i, (name, data) in enumerate(kwargs.items()):
         ndim = data.ndim
         col = i % row_break
-        row = i//row_break
+        row = i // row_break
         ax = axs[row, col]
         ax.set_title(name)
         if ndim == 1:
             ax.plot(data, label=name)
             ax.set_ylim([vmin, vmax])
         elif ndim == 2:
-            im = ax.imshow(data, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto', origin='lower')
+            im = ax.imshow(data, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto', origin='lower',
+                           cmap=next(colormaps))
             f.colorbar(im, ax=ax)
         else:
             print(f"Provided input {name} has number of dimensions {ndim} which is not supported")
             raise ValueError('number of dimensions not supported')
     if block:
-        plt.show(block=True)
-    return f
+        show(block=True)
+    return f, axs
+
 
 def axisEqual3D(ax: mpl_toolkits.mplot3d.axes3d.Axes3D):
     extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
@@ -372,6 +392,7 @@ def setticks(ax, stepsize=1) -> None:
     """
     ax.get_xaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
     ax.get_yaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
+
 
 def draw_hexes(vertices: np.ndarray, color: str, linestyle: str, linewidth: int):
     import matplotlib.pyplot as plt
