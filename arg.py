@@ -163,7 +163,8 @@ def parse_to(container_class, epilog: str = "", transform_names: Callable[[str],
                 raise TypeError(f"Values must be typed as subclasses of Arg or be one of {autocast_types}")
         else:
             value = value_or_class
-            value.set_default(default)
+            if default is not None:
+                value.set_default(default)
         if verbose:
             print("add_argument", mangle_name(name, value.pos), value.kwargs)
         parser.add_argument(mangle_name(name, value.pos), **value.kwargs)
