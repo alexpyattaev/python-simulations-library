@@ -68,7 +68,7 @@ class TF_Imbalance_Abort_Callback(Callback):
         assert len(monitor) == 2, 'must observe exactly 2 values at a time'
         self.patience = patience
         self.balance_rtol = balance_rtol
-
+        self.completed_epochs = 0
         self.wait = 0
         self.stopped_epoch = 0
         self.aborted = False
@@ -80,6 +80,7 @@ class TF_Imbalance_Abort_Callback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
+        self.completed_epochs +=1
         vals = [logs.get(m) for m in self.monitor]
         if any(map(lambda a: a is None, vals)):
             print(f'ImbalanceAbort conditioned on metrics {self.monitor} which are not available.'
@@ -98,9 +99,6 @@ class TF_Imbalance_Abort_Callback(Callback):
         else:
             self.wait = 0
 
-    def on_train_end(self, logs=None):
-        if self.stopped_epoch > 0:
-            print('Epoch %05d: ImbalanceAbort' % (self.stopped_epoch + 1))
 
 
 class TF_Reset_States_Callback(Callback):
