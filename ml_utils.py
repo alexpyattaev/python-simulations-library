@@ -4,7 +4,8 @@ ML related utility functions for data conditioning (mostly tensorflow)
 import itertools
 import os
 import unittest
-from typing import Union, Iterable, Tuple, List
+from collections import namedtuple
+from typing import Union, Iterable, Tuple, List, NamedTuple
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -333,6 +334,12 @@ def time_distributed_dense_layer(n, **kwargs):
     """
     layer = keras.layers.Dense(n, **kwargs)
     return keras.layers.TimeDistributed(layer, name=layer.name + "_TD")
+
+
+def get_layer_coeffs(layer: keras.layers.Layer):
+    """Get total number of trainable parameters in a layer"""
+    coeffs = sum([np.prod(jj.shape) for jj in layer.trainable_weights])
+    return coeffs
 
 
 class Test_ml_utils(unittest.TestCase):
