@@ -3,7 +3,7 @@ import dataclasses
 from enum import EnumMeta
 from typing import Callable, Union
 
-__all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'Bool', 'List', 'parse_to')
+__all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'File', 'Bool', 'List', 'parse_to')
 
 
 class Arg:
@@ -29,7 +29,7 @@ class Arg:
 class Int(Arg):
     """Int argument"""
     def __init__(self, **kwargs):
-        super().__init__(typ=int, **kwargs)
+        Arg.__init__(self, typ=int, **kwargs)
 
 
 class Bool(Arg):
@@ -40,7 +40,7 @@ class Bool(Arg):
         :param kwargs: passed to argparse
         """
         self.flag = flag
-        super().__init__(typ=bool, **kwargs)
+        Arg.__init__(self, typ=bool, **kwargs)
 
     def set_default(self, default):
         if self.flag:
@@ -58,13 +58,13 @@ class Bool(Arg):
 class Float(Arg):
     """Float argument"""
     def __init__(self, **kwargs):
-        super().__init__(typ=float, **kwargs)
+        Arg.__init__(self, typ=float, **kwargs)
 
 
 class Str(Arg):
     """String argument"""
     def __init__(self, **kwargs):
-        super().__init__(typ=str, **kwargs)
+        Arg.__init__(self, typ=str, **kwargs)
 
 
 class _MetaList(type):
@@ -75,7 +75,7 @@ class _MetaList(type):
 class List(Arg, metaclass=_MetaList):
     """List of certain homogenous type items"""
     def __init__(self, **kwargs, ):
-        super().__init__(**kwargs)
+        Arg.__init__(self, **kwargs)
 
     def __call__(self, **kwargs):
         self.kwargs.update(kwargs)
@@ -99,7 +99,7 @@ class Choice(Arg, metaclass=_MetaChoice):
     """Choice out of iterable or Enum"""
     def __init__(self, choices, extra_help=None, **kwargs):
         self.extra_help = extra_help
-        super().__init__(choices=choices, **kwargs)
+        Arg.__init__(self, choices=choices, **kwargs)
 
     def __call__(self, **kwargs):
         if self.extra_help is not None:
@@ -117,7 +117,7 @@ class Choice(Arg, metaclass=_MetaChoice):
 class File(Arg):
     """File argument"""
     def __init__(self, mode='r', bufsize=-1, encoding=None, errors=None, **kwargs):
-        super().__init__(typ=argparse.FileType(mode, bufsize, encoding, errors), **kwargs)
+        Arg.__init__(self, typ=argparse.FileType(mode, bufsize, encoding, errors), **kwargs)
 
 
 autocast_types = {int: Int,
@@ -151,14 +151,13 @@ def parse_to(container_class, epilog: str = "", transform_names: Callable[[str],
         name = field.name
         default = field.default
         value_or_class = field.type
-        # print(name, default, value_or_class)
-        if isinstance(value_or_class, type):  # Type is not an instance (e.g. int)
+        if isinstance(value_or_class, type):  # Type is not an instance (e.g. int or float)
             if issubclass(value_or_class, Arg):
                 # noinspection PyArgumentList
                 value = value_or_class(default=default)
-            elif value_or_class in autocast_types:
+            elif value_or_class in autocast_types:  # this handles primitive types
                 # noinspection PyTypeChecker
-                value = autocast_types[value_or_class](default=default)
+                value = autocast_types[value_or_class](default=default)  # type: ignore
             else:
                 raise TypeError(f"Values must be typed as subclasses of Arg or be one of {autocast_types}")
         else:

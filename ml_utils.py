@@ -188,8 +188,8 @@ def plot_histories(histories):
     epoch = 0
     for name, history, keys in histories:
         epoch, history = history
+        print(epoch)
         print('Available keys:', history.keys())
-
         for key in keys:
             try:
                 val = plt.plot(epoch, history['val_' + key],
@@ -203,7 +203,7 @@ def plot_histories(histories):
     plt.xlabel('Training epochs')
     plt.legend()
 
-    plt.xlim([0, max(epoch)])
+    #plt.xlim([0, max(epoch)])
     return f
 
 
