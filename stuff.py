@@ -2,7 +2,7 @@ import inspect
 import sys
 from bisect import bisect_left
 from math import log, pi
-from typing import Union, Callable, Iterable
+from typing import Union, Callable, Iterable, Dict
 import os
 import numpy as np
 
@@ -63,7 +63,7 @@ cap = np.clip
 
 
 @jit
-def log2(x):
+def log2(x: Union[float, int]) -> Union[float, int]:
     """
     Returns a log2 of value while preserving type
     :param x:
@@ -73,7 +73,7 @@ def log2(x):
     return t(log(x, 2))
 
 
-def sign(x: float):
+def sign(x: float) -> int:
     """
     :param x: input arg, must be scalar
     :return: Returns sign of value x. If x is zero, returns zero.
@@ -85,7 +85,7 @@ def sign(x: float):
 
 
 @jit_hardcore
-def DB2RATIO(d):
+def DB2RATIO(d: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """
     Convert a value / array of values into linear scale
 
@@ -97,7 +97,7 @@ def DB2RATIO(d):
 
 
 @jit_hardcore
-def RATIO2DB(x):
+def RATIO2DB(x: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """
     Convert a value / array of values into dB scale.
 
@@ -108,7 +108,8 @@ def RATIO2DB(x):
     return 10.0 * np.log10(x)
 
 
-def stub(*args, **kwargs):
+# noinspection PyUnusedLocal
+def stub(*args, **kwargs) -> None:
     """A function that accepts any args and does absolutely nothing"""
     pass
 
@@ -127,7 +128,7 @@ def dic_parse(s: str, sep1: str = ' ', sep2: str = '_'):
         return d
 
 
-def binary_search(array, x):
+def binary_search(array, x) -> int:
     """Locate the leftmost value exactly equal to x"""
     i = bisect_left(array, x)
     if i != len(array) and array[i] == x:
@@ -136,24 +137,25 @@ def binary_search(array, x):
 
 
 @jit_hardcore
-def shannon_capacity(BW_Hz, lin_SINR):
+def shannon_capacity(BW_Hz: Union[float, np.ndarray], lin_SINR: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """Return Shannon's capacity for bandwidth BW_Hz and SNR equal to SINR"""
     return BW_Hz * np.log2(1 + lin_SINR)
 
 
 @jit_hardcore
-def shannon_required_lin_SINR(BW_Hz, data_rate):
+def shannon_required_lin_SINR(BW_Hz: Union[float, np.ndarray],
+                              data_rate: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """Return required linear SNR to achieve a given rate in bps over bandwidth BW_Hz"""
     return 2 ** (data_rate / BW_Hz) - 1
 
 
 @jit_hardcore
-def free_space_path_loss(dist: float, frequency_Hz: float):
+def free_space_path_loss(dist: Union[float, np.ndarray], frequency_Hz: Union[float, np.ndarray]) -> float:
     return 20 * np.log10(dist) + 20 * np.log10(frequency_Hz) - 147.55
 
 
 @jit_hardcore
-def friis_path_loss_dB(dist: [float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
+def friis_path_loss_dB(dist: Union[float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
     """Return the path loss in dB according to Friis formula.
 
     n may be adjusted unlike free_space_path_loss
@@ -167,8 +169,8 @@ def friis_path_loss_dB(dist: [float, np.ndarray], frequency_Hz: float, n: float 
 
 
 @jit_hardcore
-def friis_range(path_loss_dB: Union[np.ndarray, float], frequency_Hz: float, n: float = 2.0) -> Union[
-    np.ndarray, float]:
+def friis_range(path_loss_dB: Union[np.ndarray, float],
+                frequency_Hz: float, n: float = 2.0) -> Union[np.ndarray, float]:
     """Return the range according to Friis formula given path loss in dB. n may be adjusted
 
     If the path loss is negative, an absolute value is taken.
@@ -239,15 +241,16 @@ def merge_axes(arr: np.ndarray, mergelist: Iterable[int]):
     newshape = list(arr.shape[0:ndim - len(mergelist)]) + [-1]
     arr = arr.reshape(newshape)
     # Now we can move the collapsed axis back into its proper position
-    arr = np.moveaxis(arr, len(newshape)-1, mergelist.min())
+    # noinspection PyArgumentList
+    arr = np.moveaxis(arr, len(newshape) - 1, mergelist.min())
     return arr
 
 
-def bool_array_to_string(arr):
+def bool_array_to_string(arr: Iterable[bool]) -> str:
     return "".join(("01"[i] for i in arr))
 
 
-def fitargs(f: Callable, kwargs: dict):
+def fitargs(f: Callable, kwargs: Dict[str, str]) -> Dict[str, str]:
     """
     Fit keyword arguments to called function parameter list
     :param f: function to use
@@ -257,14 +260,13 @@ def fitargs(f: Callable, kwargs: dict):
     return {k: kwargs[k] for k in inspect.signature(f).parameters if k in kwargs}
 
 
-if __name__ == "__main__":
-
+def test_merge_axes():
     x = np.zeros(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
     for i in range(5):
-        x[0, 0, 2, i, :] = np.arange(6) + (i*6)
+        x[0, 0, 2, i, :] = np.arange(6) + (i * 6)
 
     for i in range(5):
-        x[0, 1, 0, i, :] = -(np.arange(6) + (i*6))
+        x[0, 1, 0, i, :] = -(np.arange(6) + (i * 6))
 
     y = merge_axes(x, [1, 2])
     print(y.shape)
