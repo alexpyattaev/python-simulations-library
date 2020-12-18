@@ -5,7 +5,7 @@ import itertools
 import os
 import unittest
 from collections import namedtuple
-from typing import Union, Iterable, Tuple, List, NamedTuple
+from typing import Union, Iterable, Tuple, List, NamedTuple, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -183,22 +183,22 @@ def calc_output_bias(all_labels, num_cat) -> Tuple[np.ndarray, np.ndarray]:
     return initial_bias, class_weights
 
 
-def plot_histories(histories):
-    f = plt.figure(figsize=(16, 10))
-    epoch = 0
-    for name, history, keys in histories:
-        epoch, history = history
-        print(epoch)
-        print('Available keys:', history.keys())
-        for key in keys:
-            try:
-                val = plt.plot(epoch, history['val_' + key],
-                               '--', label=f"{name} {key} Validation")
-                plt.plot(epoch, history[key], color=val[0].get_color(),
-                         label=f"{name} {key} Training")
-            except:
-                print('could not plot key ', key)
-                pass
+def plot_history(name, history: List[Dict[str, np.ndarray]], keys=None, ax = None):
+    if ax is None:
+        f = plt.figure(figsize=(16, 10))
+        ax
+    epoch, history = history
+    print(epoch)
+    print('Available keys:', history.keys())
+    for key in keys:
+        try:
+            val = plt.plot(epoch, history['val_' + key],
+                           '--', label=f"{name} {key} Validation")
+            plt.plot(epoch, history[key], color=val[0].get_color(),
+                     label=f"{name} {key} Training")
+        except:
+            print('could not plot key ', key)
+            pass
 
     plt.xlabel('Training epochs')
     plt.legend()
