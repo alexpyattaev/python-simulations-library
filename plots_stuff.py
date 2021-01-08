@@ -1,7 +1,7 @@
 import os
 import pickle
-from itertools import repeat
-from typing import List, Union, Callable, Tuple, Iterable
+from itertools import repeat, count
+from typing import List, Union, Callable, Tuple, Iterable, Dict
 
 import numpy as np
 from matplotlib import cycler
@@ -56,6 +56,36 @@ def matplotlib_WINTER_style():
     mpl.rc('errorbar', capsize=5)
     mpl.rc('axes', prop_cycle=cycler(color=['blue', 'green', 'red'], marker=('v', 'o', '+')))
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
+
+
+def plot_timelines(data: Dict[str, np.ndarray], colors=None, time_axis=None, fig_args=None, ax_args=None)-> mpl.figure.Figure:
+    if fig_args is None:
+        fig_args = {'figsize': [14, 10]}
+    if ax_args is None:
+        ax_args = {}
+    num_lines = len(data)
+
+    colormap = matplotlib.cm.get_cmap('jet')
+    if colors is None:
+        colors = [colormap(k) for k in np.linspace(0, 1, num_lines)]
+
+    f, axes = subplots(nrows=num_lines, ncols=1, sharex="all", **fig_args)
+    all_handles = []
+    all_labels = []
+    for ax, key, clr in zip(axes, data, colors):
+        if time_axis is None:
+            time_axis = np.arange(len(data[key]))
+        assert len(time_axis) == len(data[key]), "All timeline lengths must agree!"
+        ax.plot(data[key], label=f"{key}", color=clr, **ax_args)
+        ax.get_xaxis().set_major_locator(matplotlib.ticker.MaxNLocator(nbins='auto', min_n_ticks=10))
+        handles, labels = ax.get_legend_handles_labels()
+        all_handles += handles
+        all_labels += labels
+        ax.grid()
+
+
+    f.legend(all_handles, all_labels, 'right')
+    return f
 
 
 def mpl_figure(title: str, xlabel: str = None, ylabel: str = None) -> mpl.figure.Figure:

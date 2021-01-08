@@ -175,8 +175,8 @@ def calc_output_bias(all_labels, num_cat) -> Tuple[np.ndarray, np.ndarray]:
     if num_cat == 1:
         all_labels = np.expand_dims(all_labels, -1)
     for ldim in range(num_cat):
-        pos = np.count_nonzero(all_labels[..., ldim] >= 0.2)
-        neg = np.count_nonzero(all_labels[..., ldim] < 0.2)
+        pos = np.count_nonzero(all_labels[..., ldim] >= 0.01)
+        neg = np.count_nonzero(all_labels[..., ldim] < 0.001)
         initial_bias[ldim] = np.log(pos / neg)
         print(f'Label channel {ldim}: {pos} positives, {neg} negatives, Output bias {initial_bias[ldim]}')
         class_weights[ldim] = (1 / neg) * (pos + neg) / 2.0
