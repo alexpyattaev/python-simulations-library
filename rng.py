@@ -1,4 +1,5 @@
 from functools import partial
+import numpy
 import numpy.random as nprandom
 
 from debug_log import error
@@ -15,7 +16,7 @@ def set_seed(x=7):
     _rng.seed(x)
 
 
-def make_local_random()->nprandom.RandomState:
+def make_local_random() -> nprandom.RandomState:
     _seed[1] += 1
     return nprandom.RandomState(_seed[1])
 
@@ -34,20 +35,18 @@ rand = _rng.rand
 gamma = _rng.gamma
 exponential = _rng.exponential
 binomial = _rng.binomial
-
-
-def exponential_capped(mean, cap_rate=5.0, _fsample=10):
-    x = _rng.exponential(mean, size=_fsample)
-
-    Q = x[x < cap_rate * mean]
-    if len(Q):
-        return Q[0]
-    else:
-        error("Exponential capping failed, consider increasing cap_rate!")
-        return x.min()
-
-
 rayleigh = _rng.rayleigh
+
+
+def exponential_capped(mean, cap_rate=5.0, _fsample=10, rng=_rng):
+    x = rng.exponential(mean, size=_fsample)
+
+    x = x[x < cap_rate * mean]
+    try:
+        return x[0]
+    except IndexError:
+        error("Exponential capping failed, consider increasing cap_rate!")
+        return cap_rate*mean
 
 
 def toss_coin(p):
