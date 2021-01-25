@@ -200,6 +200,7 @@ from lib import rng
 import numpy
 from pyquaternion import Quaternion
 
+from lib.numba_opt import jit, jit_hardcore
 from lib.vectors import norm
 
 __version__ = '2015.07.18'
@@ -1856,6 +1857,7 @@ def is_same_transform(matrix0, matrix1):
     return numpy.allclose(matrix0, matrix1)
 
 
+@jit_hardcore
 def cyl_to_cart(lat: float, lon: float) -> numpy.ndarray:
     """
     Convert cylindrical coords (as you would expect them on a globe) to cartesian unit vector

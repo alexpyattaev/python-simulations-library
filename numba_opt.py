@@ -1,11 +1,14 @@
 import functools
 __author__ = 'Alex Pyattaev'
-numba = False
+import os
+
 try:
-    if not numba:
+
+    if 'NO_NUMBA' in os.environ:
         raise ImportError
+
     import numba
-    #print("Numba support enabled")
+    print("Numba support enabled")
     numba_available = True
     jit_hardcore = functools.partial(numba.jit, nopython=True, nogil=True, cache=True)
     jit = functools.partial(numba.jit, forceobj=True, nopython=False, cache=True)
@@ -13,12 +16,10 @@ try:
     int64 = numba.int64
     int16 = numba.int16
     double = numba.double
-
     complex128 = numba.complex128
-
 except ImportError:
     numba = None
-    #print("Numba support not available")
+    print("Numba support not available")
     numba_available = False
     int64 = int
     int16 = int
