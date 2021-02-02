@@ -278,3 +278,25 @@ def test_merge_axes():
     print(z.shape)
     print(z[0, 0, 10:15, :])
     print(z[0, 1, 0:5, :])
+
+
+class Do_Not_Copy:
+    def __copy__(self):
+        raise RecursionError(f"One should not make copies of {self.__class__.__name__} object!")
+
+    def __deepcopy__(self, memodict={}):
+        raise RecursionError(f"One should not make deep copies of {self.__class__.__name__} object!")
+
+
+def test_Do_Not_Copy():
+    import pytest
+    class boo(Do_Not_Copy):
+        def __init__(self, x):
+            self.x = x
+
+    a = boo(4)
+    from copy import copy, deepcopy
+    with pytest.raises(RecursionError):
+        b = deepcopy(a)
+    with pytest.raises(RecursionError):
+        b = copy(a)

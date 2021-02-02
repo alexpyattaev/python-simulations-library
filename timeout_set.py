@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import MutableMapping, MutableSet, List, Hashable, Callable
 
 from lib import ANY
