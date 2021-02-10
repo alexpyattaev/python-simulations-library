@@ -1882,9 +1882,48 @@ def cyl_to_cart(lat: float, lon: float) -> numpy.ndarray:
     return numpy.array([x, y, z])
 
 
+def quaternion_between_vectors(v1, v2) -> Quaternion:
+    """
+    Construct rotation quaternion to rotate direction given by v1 towards v2
+
+    :param v1: "source" direction
+    :param v2: "destination" direction
+    :return: Quaternion of rotation, such that ret.rotate(v1) == v2
+    """
+    def orthogonal(v):
+        x = numpy.abs(v[0])
+        y = numpy.abs(v[1])
+        z = numpy.abs(v[2])
+
+        if x < y:
+            if x < z:
+                other = numpy.array((1, 0, 0))
+                return numpy.cross(v, other)
+            else:
+                other = numpy.array((0, 0, 1))
+                return numpy.cross(v, other)
+        else:
+            if y < z:
+                other = numpy.array((0, 1, 0))
+                return numpy.cross(v, other)
+            else:
+                other = numpy.array((0, 0, 1))
+                return numpy.cross(v, other)
+
+    v1 = unit_vector(v1)
+    v2 = unit_vector(v2)
+
+    if numpy.allclose(v1, - v2):
+        return Quaternion(scalar=0, vector=unit_vector(orthogonal(v1)))
+
+    half = unit_vector(v1 + v2)
+    return Quaternion(scalar=numpy.dot(v1, half), vector=numpy.cross(v1, half))
+
+
 if __name__ == "__main__":
     import doctest
     import rng  # used in doctests
 
     numpy.set_printoptions(suppress=True, precision=5)
     doctest.testmod()
+

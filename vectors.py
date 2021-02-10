@@ -53,6 +53,3 @@ def distance_multipoint(base: np.ndarray, points: np.ndarray) -> np.ndarray:
 def vector_project(v: np.ndarray, p: np.ndarray) -> np.ndarray:
     """Project point p onto vector v"""
     return p * np.dot(p, v) / (norm(p) ** 2)
-
-
-
