@@ -103,3 +103,13 @@ def distance_to_line(segment, p) -> float:
         return norm(p - segment[1])
     else:
         return norm(n_v)
+
+
+def vector_reflect(v:np.ndarray, n:np.ndarray)->np.ndarray:
+    """
+    Compute vector reflection off surface given by normal n.
+    :param v: input direction vector. Should be normalized.
+    :param n: surface normal direction vector. Should be normalized.
+    :return: reflected vector (normalized)
+    """
+    return v - 2 * np.dot(n, v) * n
