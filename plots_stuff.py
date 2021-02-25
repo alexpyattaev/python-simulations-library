@@ -436,3 +436,22 @@ def draw_hexes(vertices: np.ndarray, color: str, linestyle: str, linewidth: int)
             # print(f"Drawing line from {start} to {end}")
             plt.plot(np.array([start[0], end[0]]), np.array([start[1], end[1]]), color=color, linestyle=linestyle,
                      linewidth=linewidth)
+
+
+def power_scale_axes(ax: matplotlib.figure.Axes, axes: str="x", scale: float=0.7) -> None:
+    """
+
+    :param ax: axes object to operate on
+    :param axes: axes to manipulate scale on. can be x,y or both
+    :param scale: power scale to apply
+
+    """
+    def compress(x, pow=scale):
+        return np.sign(x) * (np.abs(x) ** pow)
+
+    def decompress(x, pow=scale):
+        return x ** 1 / pow
+    if "x" in axes:
+        ax.set_xscale('function', functions=(compress, decompress))
+    if "y" in axes:
+        ax.set_yscale('function', functions=(compress, decompress))
