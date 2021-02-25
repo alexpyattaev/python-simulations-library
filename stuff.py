@@ -153,6 +153,19 @@ def shannon_required_lin_SINR(BW_Hz: Union[float, np.ndarray],
 def free_space_path_loss(dist: Union[float, np.ndarray], frequency_Hz: Union[float, np.ndarray]) -> float:
     return 20 * np.log10(dist) + 20 * np.log10(frequency_Hz) - 147.55
 
+@jit_hardcore
+def friis_path_loss(dist: Union[float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
+    """Return the path loss according to Friis formula.
+
+    n may be adjusted unlike free_space_path_loss
+    Normally, returned path loss will be negative (as per the textbook formula definition)
+
+    :param dist: distance in meters. Can be array of distances.
+    :param frequency_Hz: carrier
+    :param n: propagation constant (normally 2)
+    """
+    return np.power(speed_of_light / (frequency_Hz * 4 * pi * dist), n)
+
 
 @jit_hardcore
 def friis_path_loss_dB(dist: Union[float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
@@ -278,3 +291,25 @@ def test_merge_axes():
     print(z.shape)
     print(z[0, 0, 10:15, :])
     print(z[0, 1, 0:5, :])
+
+
+class Do_Not_Copy:
+    def __copy__(self):
+        raise RecursionError(f"One should not make copies of {self.__class__.__name__} object!")
+
+    def __deepcopy__(self, memodict={}):
+        raise RecursionError(f"One should not make deep copies of {self.__class__.__name__} object!")
+
+
+def test_Do_Not_Copy():
+    import pytest
+    class boo(Do_Not_Copy):
+        def __init__(self, x):
+            self.x = x
+
+    a = boo(4)
+    from copy import copy, deepcopy
+    with pytest.raises(RecursionError):
+        b = deepcopy(a)
+    with pytest.raises(RecursionError):
+        b = copy(a)
