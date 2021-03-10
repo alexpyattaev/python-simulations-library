@@ -54,25 +54,27 @@ if __name__ == "__main__":
 
     SAMPLERATE = int(10e6)
     CARRIER = 80e9
+    CARRIER = 10e9
     N_SAMPLES = 2 ** 14
     PAD = 1000
     t = np.arange(0, N_SAMPLES / SAMPLERATE, 1 / SAMPLERATE)
-    base_freq_Hz = np.array([-3e6, 3e6])
-    #base_freq_Hz = np.array([3e6])
+    # base_freq_Hz = np.array([-3e6, 0, 3e6])
+    base_freq_Hz = np.array([0])
 
     s0 = np.zeros_like(t, dtype=complex)
     for f in base_freq_Hz:
         s0 += np.exp(1j * 2 * np.pi * t * f)
 
     s0[:100] = 0
-    s0[N_SAMPLES//2-100:N_SAMPLES//2+100]=0
+    s0[N_SAMPLES//2-100:N_SAMPLES//2+100] = 0
     s0[-100:] = 0
     speed = np.linspace(-100, -120, len(s0)+PAD)
+    speed = np.linspace(7990_000, 8000_000, len(s0) + PAD)
     #speed = np.linspace(-2, 3, len(s0)+PAD)
     #speed = 100.0
 
     signal_speed = speed_of_light
-    signal_speed = 0.4e7
+    # signal_speed = 0.4e7
 
     if isinstance(speed, Sized):
         plt.figure()
