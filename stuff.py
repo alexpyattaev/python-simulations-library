@@ -5,10 +5,11 @@ from math import log, pi
 from typing import Union, Callable, Iterable, Dict
 import os
 import numpy as np
+from scipy.constants import constants
 
 from lib.numba_opt import jit_hardcore, jit
 
-speed_of_light = 299792458 * 1.0003  # meters/sec
+speed_of_light = constants.speed_of_light / 1.0003  # meters/sec in air!!!
 
 
 def pprint(*args, **kwargs):
