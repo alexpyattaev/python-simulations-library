@@ -18,14 +18,23 @@ class Stateful_Linear_Filter:
         self.a = a
         self._state = signal.lfilter_zi(self.b, self.a)
 
-    def __call__(self, x: float) -> float:
+    def __call__(self, x: Union[float, Iterable]) -> float:
         """
         Actually filter the data
         :param x: value to be filtered next (only one!)
         :return: current output of the filter
         """
-        x, self._state = signal.lfilter(self.b, self.a, [x], zi=self._state)
-        return x[0]
+        if isinstance(x, float) or isinstance(x, int):
+            x = (x,)
+            return_array = False
+        else:
+            return_array = True
+
+        x, self._state = signal.lfilter(self.b, self.a, np.array(x), zi=self._state)
+        if return_array:
+            return x
+        else:
+            return x[0]
 
 
 def ZOH_filter(data, actual_times, desired_times):
