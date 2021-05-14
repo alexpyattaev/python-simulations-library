@@ -1,9 +1,10 @@
 import argparse
 import dataclasses
 from enum import EnumMeta
-from typing import Callable, Union
+from io import  IOBase
+from typing import Callable, Union, Dict
 
-__all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'File', 'Bool', 'List', 'parse_to')
+__all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'File', 'Bool', 'List', 'parse_to', 'Arg_Container')
 
 
 class Arg:
@@ -170,3 +171,16 @@ def parse_to(container_class, epilog: str = "", transform_names: Callable[[str],
 
     arg_dict = parser.parse_args(args=args)
     return container_class(**vars(arg_dict))
+
+
+@dataclasses.dataclass
+class Arg_Container:
+    def asdict(self)-> Dict[str, object]:
+        result = {}
+        for f in dataclasses.fields(self):
+            value = getattr(self, f.name)
+            if isinstance(value, IOBase) and hasattr(value, 'name'):
+                value = value.name
+            print(f.name, value)
+            result[f.name] = value
+        return result

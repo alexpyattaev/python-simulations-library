@@ -7,19 +7,22 @@ import numpy as np
 vector = np.array
 
 
-@jit_hardcore
-def vector_rot90(v):
+def vector_rot90(v: np.ndarray) -> np.ndarray:
     """rotates a 3-vector around z axis counter-clockwise"""
     v[:] = v[1], -v[0], v[2]
     return v
 
 
-@jit_hardcore
-def norm(v: np.ndarray) -> [np.ndarray, float]:
+def norm(v: np.ndarray) -> float:
+    assert v.ndim == 1
     return np.sqrt((v * v).sum(axis=0))
 
 
-@jit_hardcore
+def norm_many(v: np.ndarray) -> np.ndarray:
+    assert v.ndim == 2
+    return np.sqrt((v * v).sum(axis=0))
+
+
 def vector_normalize(v: np.ndarray) -> np.ndarray:
     """Limit the vector's length to 1, keeping direction intact"""
     n = norm(v)
@@ -27,7 +30,6 @@ def vector_normalize(v: np.ndarray) -> np.ndarray:
     return v / norm(v)
 
 
-@jit_hardcore
 def distance(p1: np.ndarray, p2: np.ndarray) -> float:
     """
     Compute distance between two points
@@ -50,7 +52,6 @@ def distance_multipoint(base: np.ndarray, points: np.ndarray) -> np.ndarray:
     return norm((points - base).T)
 
 
-@jit_hardcore
 def vector_project(v: np.ndarray, p: np.ndarray) -> np.ndarray:
     """Project point p onto vector v. This will work even if v is not normalized.
 
