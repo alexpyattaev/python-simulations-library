@@ -12,7 +12,7 @@ try:
     print("Numba support enabled")
     numba_available = True
     jit_hardcore = functools.partial(numba.jit, nopython=True, nogil=True, cache=True)
-    jit = functools.partial(numba.jit, forceobj=True, nopython=False, cache=True)
+    jit = functools.partial(numba.jit, forceobj=False, nopython=False, cache=True)
     jitclass = numba.experimental.jitclass
     int64 = numba.int64
     int16 = numba.int16
