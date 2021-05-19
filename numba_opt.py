@@ -8,11 +8,12 @@ try:
         raise ImportError
 
     import numba
+    import numba.experimental
     print("Numba support enabled")
     numba_available = True
     jit_hardcore = functools.partial(numba.jit, nopython=True, nogil=True, cache=True)
     jit = functools.partial(numba.jit, forceobj=True, nopython=False, cache=True)
-    jitclass = numba.jitclass
+    jitclass = numba.experimental.jitclass
     int64 = numba.int64
     int16 = numba.int16
     double = numba.double
