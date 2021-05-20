@@ -9,6 +9,9 @@ from scipy.constants import constants
 
 from lib.numba_opt import jit_hardcore, jit
 
+# epsilon for testing whether a number is close to zero
+_EPS: float = np.finfo(float).eps * 4.0
+
 speed_of_light = constants.speed_of_light / 1.0003  # meters/sec in air!!!
 
 
