@@ -1,7 +1,6 @@
 from functools import partial
 import numpy as np
 import numpy.random as nprandom
-import networkx as nx
 from debug_log import error
 
 
@@ -65,22 +64,35 @@ def rand_sign():
 
 
 def random_DAG(size: int = 10, connectivity_pattern=lambda imax: randint(0, imax),
-               weight_distribution=lambda: randint(1, 10)):
+               weight_distribution=lambda: randint(1, 10)) -> np.ndarray:
+    """
+     Create the connectivity matrix for random DAG
+
+     One can convert into e.g. networkx graph with
+     G = nx.convert_matrix.from_numpy_matrix(W, parallel_edges=False, create_using=nx.DiGraph)
+
+    :param size: number of nodes
+    :param connectivity_pattern: function defining connectivity of the nodes.
+    :param weight_distribution: weights for the values in the matrix
+    :return: connectivity matrix for the DAG
+    """
     if size < 1:
         raise ValueError('Size must be positive for a graph to be made!')
     W = np.zeros([size, size])
     for i in range(1, size):
         W[i, connectivity_pattern(i)] = weight_distribution()
-    G = nx.convert_matrix.from_numpy_matrix(W, parallel_edges=False, create_using=nx.DiGraph)
-    return G
+
+    return W
 
 
 def test_random_DAG():
+    import networkx as nx
     #import matplotlib.pyplot as plt
     #from networkx.drawing.nx_pydot import graphviz_layout
     con_pattern = lambda imax: min(int(exponential(5)), imax-1)
     for i in range(5, 50):
-        G = random_DAG(i)#, connectivity_pattern=con_pattern)
+        W = random_DAG(i)
+        G = nx.convert_matrix.from_numpy_matrix(W, parallel_edges=False, create_using=nx.DiGraph)
         assert nx.is_directed_acyclic_graph(G), "G must be a DAG!"
         assert nx.is_tree(G), "G must be a tree!"
 
