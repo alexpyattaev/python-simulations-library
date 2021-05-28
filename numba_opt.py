@@ -5,6 +5,7 @@ import os
 try:
 
     if 'NO_NUMBA' in os.environ:
+        print("Numba disabled by environment variable")
         raise ImportError("Numba is disabled")
 
     import numba
@@ -24,7 +25,8 @@ except ImportError:
     int16 = int
     double = float
     complex128 = complex
-    #define stub functions for Numba placeholders
+
+    # define stub functions for Numba placeholders
     def jit(f, *args, **kwargs):
         return f
 
