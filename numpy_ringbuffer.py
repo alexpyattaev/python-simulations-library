@@ -2,7 +2,7 @@
 Based on the work in https://github.com/eric-wieser/numpy_ringbuffer/blob/master/numpy_ringbuffer/__init__.py
 """
 import numpy as np
-from collections import Sequence
+from collections.abc import Sequence
 
 
 class NP_Ring_Buffer(Sequence):
@@ -186,13 +186,13 @@ class NP_Ring_Buffer(Sequence):
 
 
 if __name__ == "__main__":
-    x=NP_Ring_Buffer(10, (float, 3))
-    data  = np.arange(9).reshape([3,3])
+    x = NP_Ring_Buffer(7, (float, 3))
+    data = np.arange(9).reshape([3,3])
     data2 = np.arange(3)+100
     x.extend(data)
     x.append(data2)
     x.extend(data)
-    x.extend(data)
+    x.extend(-data)
     print(x)
     print(np.array(x))
     print(x.mean())

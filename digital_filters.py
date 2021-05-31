@@ -18,7 +18,7 @@ class Stateful_Linear_Filter:
         self.a = a
         self._state = signal.lfilter_zi(self.b, self.a)
 
-    def __call__(self, x: Union[float, Iterable]) -> float:
+    def __call__(self, x: Union[float, Iterable]) -> Union[float, Iterable]:
         """
         Actually filter the data
         :param x: value to be filtered next (only one!)
