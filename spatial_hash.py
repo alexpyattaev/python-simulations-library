@@ -11,7 +11,7 @@ class Spatial_Hash_Grid(object):
     def __init__(self, cell_size=10, grid_size=50, object_classes=("TX", "RX"), layout=None, **kwargs):
         assert (grid_size % 2 == 0), "The grid size must be even integer number"
         self.object_grids = dict()
-        #Create object grids for all objects of interest
+        # Create object grids for all objects of interest
         for c in object_classes:
             self.object_grids[c] = np.array([[set() for x in range(grid_size)] for y in range(grid_size)], dtype=object)
         self.wrap_pointers = np.array([[[-1,-1] for x in range(grid_size)] for y in range(grid_size)], dtype=int)
@@ -36,7 +36,7 @@ class Spatial_Hash_Grid(object):
         else:
             raise ValueError("Unsupported layout " + str(layout))
 
-    def change_cell(self, pos:np.ndarray, item:object, object_class:str):
+    def change_cell(self, pos: np.ndarray, item: object, object_class:str):
 
         # Is this really needed? Maybe assume that cells never change during lifetime of a session?
         try:
@@ -46,7 +46,7 @@ class Spatial_Hash_Grid(object):
             pass
 
         c = self[object_class, pos[0:2]]
-        print("Adding to cell {}".format(c))
+        debug("Adding to cell {}", (c,))
         c.add(item)
         self.items[(object_class, item)] = c
 
@@ -80,6 +80,8 @@ class Spatial_Hash_Grid(object):
         x_m = int(x_m / self.cell_size) + self.g_half
         y_m = int(y_m / self.cell_size) + self.g_half
         R = int(np.ceil(R_m / self.cell_size))
+        if R > 20:
+            raise ValueError(f"Selecting {int(np.pi*R**2)} spatial hash cells is a terrible idea, maybe change SLS.PIXEL_SIZE?")
         gmax = self.g_half * 2
         if R < 2:
             for dx in range(-R, R + 1):
@@ -88,7 +90,11 @@ class Spatial_Hash_Grid(object):
                         if coord_mode:
                             yield [x_m + dx, y_m + dy]
                         else:
-                            yield self.object_grids[object_class][x_m + dx, y_m + dy]
+                            c = self.object_grids[object_class][x_m + dx, y_m + dy]
+                            if c:
+                                yield c
+                            else:
+                                continue
                     else:
                         pass
         else:
@@ -106,14 +112,22 @@ class Spatial_Hash_Grid(object):
                             if coord_mode:
                                 yield [x_m - dx, y_m + y]
                             else:
-                                yield self.object_grids[object_class][x_m - dx, y_m + y]
+                                c = self.object_grids[object_class][x_m - dx, y_m + y]
+                                if c:
+                                    yield c
+                                else:
+                                    continue
 
                         if 0 < y <= y_m and gmax > x_m + dx >= 0:
                             # III and IV Quadrant
                             if coord_mode:
                                 yield [x_m + dx, y_m - y]
                             else:
-                                yield self.object_grids[object_class][x_m + dx, y_m - y]
+                                c = self.object_grids[object_class][x_m + dx, y_m - y]
+                                if c:
+                                    yield c
+                                else:
+                                    continue
                 draw = False
                 r = err
                 if (r <= y):

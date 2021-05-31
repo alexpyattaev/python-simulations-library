@@ -379,7 +379,6 @@ class Test_ml_utils(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import doctest
-
     unittest.main()
+    import doctest
     doctest.testmod()
