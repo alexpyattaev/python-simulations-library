@@ -1,16 +1,16 @@
 import inspect
 import sys
-from bisect import bisect_left
+import pytest
 from math import log, pi
 from typing import Union, Callable, Iterable, Dict
 import os
 import numpy as np
 from scipy.constants import constants
 
-from lib.numba_opt import jit_hardcore, jit
+from lib.numba_opt import jit_hardcore
 
 # epsilon for testing whether a number is close to zero
-_EPS: float = np.finfo(float).eps * 4.0
+EPS: float = np.finfo(float).eps * 4.0
 
 speed_of_light = constants.speed_of_light / 1.0003  # meters/sec in air!!!
 
@@ -66,8 +66,21 @@ class Any_Of(object):
 cap = np.clip
 
 
-@jit
-def log2(x: Union[float, int]) -> Union[float, int]:
+class DeletedAttributeError(AttributeError):
+    pass
+
+
+class DeletedAttribute:
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __get__(self, instance, owner):
+        cls_name = owner.__name__
+        accessed_via = f'type object {cls_name!r}' if instance is None else f'{cls_name!r} object'
+        raise DeletedAttributeError(f'attribute {self.name!r} of {accessed_via} has been deleted')
+
+
+def log2_typed(x: Union[float, int]) -> Union[float, int]:
     """
     Returns a log2 of value while preserving type
     :param x:
@@ -77,15 +90,23 @@ def log2(x: Union[float, int]) -> Union[float, int]:
     return t(log(x, 2))
 
 
+@jit_hardcore
 def sign(x: float) -> int:
     """
     :param x: input arg, must be scalar
     :return: Returns sign of value x. If x is zero, returns zero.
+    >>> sign(4)
+    1
+    >>> sign(-1.2)
+    -1
+    >>> sign(0)
+    0
     """
     if x:
-        return np.copysign(1.0, x)
+        return int(np.copysign(1.0, x))
     else:
         return 0
+
 
 
 @jit_hardcore
@@ -132,14 +153,6 @@ def dic_parse(s: str, sep1: str = ' ', sep2: str = '_'):
         return d
 
 
-def binary_search(array, x) -> int:
-    """Locate the leftmost value exactly equal to x"""
-    i = bisect_left(array, x)
-    if i != len(array) and array[i] == x:
-        return i
-    raise ValueError
-
-
 @jit_hardcore
 def shannon_capacity(BW_Hz: Union[float, np.ndarray], lin_SINR: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
     """Return Shannon's capacity for bandwidth BW_Hz and SNR equal to SINR"""
@@ -156,6 +169,7 @@ def shannon_required_lin_SINR(BW_Hz: Union[float, np.ndarray],
 @jit_hardcore
 def free_space_path_loss(dist: Union[float, np.ndarray], frequency_Hz: Union[float, np.ndarray]) -> float:
     return 20 * np.log10(dist) + 20 * np.log10(frequency_Hz) - 147.55
+
 
 @jit_hardcore
 def friis_path_loss(dist: Union[float, np.ndarray], frequency_Hz: float, n: float = 2.0) -> Union[float, np.ndarray]:
@@ -247,6 +261,48 @@ def color_print_warning(msg, fd=(sys.stdout,)):
 
 
 def merge_axes(arr: np.ndarray, mergelist: Iterable[int]):
+    """
+    Merges arbitrary contiguous group of axes of a numpy array
+    :param arr:
+    :param mergelist:
+    :return:
+    >>> x = np.zeros(2 * 3 * 4 * 5 * 6,dtype=int).reshape([2, 3, 4, 5, 6])
+    >>> for i in range(5):
+    ...     x[0, 0, 2, i, :] = np.arange(6) + (i * 6)
+    >>> for i in range(5):
+    ...     x[0, 1, 0, i, :] = -(np.arange(6) + (i * 6))
+    >>> y = merge_axes(x, [1, 2])
+    >>> y.shape
+    (2, 12, 5, 6)
+    >>> y[0, 2, :, :]
+    array([[ 0,  1,  2,  3,  4,  5],
+           [ 6,  7,  8,  9, 10, 11],
+           [12, 13, 14, 15, 16, 17],
+           [18, 19, 20, 21, 22, 23],
+           [24, 25, 26, 27, 28, 29]])
+    >>> y[0, 4, :, :]
+    array([[  0,  -1,  -2,  -3,  -4,  -5],
+           [ -6,  -7,  -8,  -9, -10, -11],
+           [-12, -13, -14, -15, -16, -17],
+           [-18, -19, -20, -21, -22, -23],
+           [-24, -25, -26, -27, -28, -29]])
+    >>> z = merge_axes(x, [2, 3])
+    >>> z.shape
+    (2, 3, 20, 6)
+    >>> z[0, 0, 10:15, :]
+    array([[ 0,  1,  2,  3,  4,  5],
+           [ 6,  7,  8,  9, 10, 11],
+           [12, 13, 14, 15, 16, 17],
+           [18, 19, 20, 21, 22, 23],
+           [24, 25, 26, 27, 28, 29]])
+    >>> z[0, 1, 0:5, :]
+    array([[  0,  -1,  -2,  -3,  -4,  -5],
+           [ -6,  -7,  -8,  -9, -10, -11],
+           [-12, -13, -14, -15, -16, -17],
+           [-18, -19, -20, -21, -22, -23],
+           [-24, -25, -26, -27, -28, -29]])
+
+    """
     ndim = arr.ndim
     mergelist = np.array(mergelist, dtype=int)
     assert (np.diff(mergelist) == 1).all()
@@ -264,6 +320,15 @@ def merge_axes(arr: np.ndarray, mergelist: Iterable[int]):
 
 
 def bool_array_to_string(arr: Iterable[bool]) -> str:
+    """
+
+    :param arr:
+    :return:
+
+    >>> bool_array_to_string([1,0,0,1])
+    '1001'
+
+    """
     return "".join(("01"[i] for i in arr))
 
 
@@ -277,26 +342,6 @@ def fitargs(f: Callable, kwargs: Dict[str, str]) -> Dict[str, str]:
     return {k: kwargs[k] for k in inspect.signature(f).parameters if k in kwargs}
 
 
-def test_merge_axes():
-    x = np.zeros(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
-    for i in range(5):
-        x[0, 0, 2, i, :] = np.arange(6) + (i * 6)
-
-    for i in range(5):
-        x[0, 1, 0, i, :] = -(np.arange(6) + (i * 6))
-
-    y = merge_axes(x, [1, 2])
-    print(y.shape)
-    print(y[0, 2, :, :])
-
-    print(y[0, 4, :, :])
-
-    z = merge_axes(x, [2, 3])
-    print(z.shape)
-    print(z[0, 0, 10:15, :])
-    print(z[0, 1, 0:5, :])
-
-
 class Do_Not_Copy:
     def __copy__(self):
         raise RecursionError(f"One should not make copies of {self.__class__.__name__} object!")
@@ -306,7 +351,6 @@ class Do_Not_Copy:
 
 
 def test_Do_Not_Copy():
-    import pytest
     class boo(Do_Not_Copy):
         def __init__(self, x):
             self.x = x
@@ -317,3 +361,8 @@ def test_Do_Not_Copy():
         b = deepcopy(a)
     with pytest.raises(RecursionError):
         b = copy(a)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

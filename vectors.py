@@ -1,5 +1,3 @@
-# cython: infer_types=True
-# cython: language_level=3
 __docformat__ = 'restructuredtext en'
 
 from math import sqrt
@@ -7,13 +5,16 @@ from numbers import Number
 from typing import Sequence, Tuple, Iterable
 import numpy as np
 
-from lib.numba_opt import jit_hardcore, jit
+from lib.numba_opt import jit_hardcore
 
 
 @jit_hardcore
 def vector(a: float, b: float, c: float, dtype=np.float64) -> np.ndarray:
     """Create vectors with float data type by default"""
     return np.array((a, b, c), dtype=dtype)
+
+
+origin, xaxis, yaxis, zaxis = vector(0, 0, 0), vector(1, 0, 0), vector(0, 1, 0), vector(0, 0, 1)
 
 
 @jit_hardcore
@@ -85,7 +86,7 @@ def norm_many(V: np.ndarray) -> np.ndarray:
     return np.sqrt((V * V).sum(axis=1))
 
 
-@jit
+@jit_hardcore
 def vector_norm(data: np.ndarray, axis=1, out=None):
     """Return length, i.e. Euclidean norm, of ndarray along axis.
     >>> v = np.random.rand(6, 5, 3)

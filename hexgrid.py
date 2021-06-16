@@ -1,6 +1,6 @@
 from math import sqrt, sin, cos, pi, atan2, floor, ceil
 
-from lib import pi_wrap
+from lib.transformations.euler_angles import wrap_angle
 from lib.vectors import norm
 from lib import rng
 import numpy as np
@@ -33,11 +33,10 @@ def hexgrid(x, y, r):
     pos_y = 2 * y * dy + y_shift
     ang = []
     for dir in range(0, 3):
-        ang.append(pi_wrap(dir * 2 / 3 * pi - pi / 6))
+        ang.append(wrap_angle(dir * 2 / 3 * pi - pi / 6))
     return pos_x, pos_y, ang
 
 
-@jit
 def pos_sector(x, y, rmin, rmax, a):
     amin = a - pi / 3
     amax = a + pi / 3
@@ -48,14 +47,12 @@ def pos_sector(x, y, rmin, rmax, a):
     return (x, y)
 
 
-@jit
 def pos_fixed(x, y, x_shift, y_shift):
     x += x_shift
     y += y_shift
     return (x, y)
 
 
-@jit
 def pos_around(x, y, rmin, rmax):
     r = np.sqrt(rng.uniform((rmin / rmax), 1.0))
     r = r * rmax
@@ -65,7 +62,6 @@ def pos_around(x, y, rmin, rmax):
     return x, y
 
 
-@jit
 def pos_around_3d(x, y, z, rmin, rmax):
     r = rng.uniform((rmin / rmax), 1.0)
     r = r * rmax
@@ -80,7 +76,6 @@ def pos_around_3d(x, y, z, rmin, rmax):
     return x, y, z
 
 
-@jit
 def pos_on_cylinder(x, y, z, radius, z_delta):
     phi = rng.uniform(0, 2 * pi)
 
@@ -91,7 +86,7 @@ def pos_on_cylinder(x, y, z, radius, z_delta):
     return x, y, z
 
 
-@jit
+
 def pos_around_hex(x1, y1, r_min, r_max, num_points=1):
     """
     Generate random uniform points in a hex centered around x1, y1
@@ -177,9 +172,9 @@ def hexgrid_box(size=5):
 if __name__ == "__main__":
     def test_hexgrid():
         pos = ((-1, 1), (1, 1), (-2, 0), (2, 0), (-1, -2), (1, -2))
-        print(hexgrid(0, 0, 0, 1))
+        print(hexgrid(0, 0, 0))
         for p in pos:
-            print(hexgrid(p[0], p[1], 0, 1))
+            print(hexgrid(p[0], p[1], 0))
 
     def test_pos_around_hex():
         pos = list(pos_around_hex(0, 0, 0.0, 5, num_points=50000))

@@ -1,4 +1,3 @@
-import bezier
 import numpy as np
 from scipy.interpolate import interp1d
 from typing import Iterable

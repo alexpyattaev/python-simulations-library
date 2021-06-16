@@ -2,8 +2,10 @@ import math
 
 import numpy as np
 
-from lib.transformations import quaternion_from_matrix, _EPS
-from lib.vectors import vector_norm, norm, unit_vector, vector
+from lib.stuff import EPS
+from lib.transformations.quaternions import quaternion_from_matrix, quaternion_slerp, quaternion_multiply, \
+    quaternion_from_elements, quaternion_to_transform_matrix
+from lib.vectors import norm, unit_vector, vector
 
 
 class Arcball(object):
@@ -43,7 +45,7 @@ class Arcball(object):
         self._vdown = np.array([0.0, 0.0, 1.0])
         self._constrain = False
         if initial is None:
-            self._qdown = np.array([1.0, 0.0, 0.0, 0.0])
+            self._qdown = quaternion_from_elements(1.0, 0.0, 0.0, 0.0)
         else:
             initial = np.array(initial, dtype=np.float64)
             if initial.shape == (4, 4):
@@ -102,10 +104,10 @@ class Arcball(object):
             vnow = arcball_constrain_to_axis(vnow, self._axis)
         self._qpre = self._qnow
         t = np.cross(self._vdown, vnow)
-        if np.dot(t, t) < _EPS:
+        if np.dot(t, t) < EPS:
             self._qnow = self._qdown
         else:
-            q = [np.dot(self._vdown, vnow), t[0], t[1], t[2]]
+            q = quaternion_from_elements(np.dot(self._vdown, vnow), t[0], t[1], t[2])
             self._qnow = quaternion_multiply(q, self._qdown)
 
     def next(self, acceleration=0.0):
@@ -115,7 +117,7 @@ class Arcball(object):
 
     def matrix(self):
         """Return homogeneous rotation matrix."""
-        return quaternion_matrix(self._qnow)
+        return quaternion_to_transform_matrix(self._qnow)
 
 
 def arcball_map_to_sphere(point, center, radius):
@@ -137,7 +139,7 @@ def arcball_constrain_to_axis(point, axis):
     a = np.array(axis, dtype=np.float64, copy=True)
     v -= a * np.dot(a, v)  # on plane
     n = norm(v)
-    if n > _EPS:
+    if n > EPS:
         if v[2] < 0.0:
             np.negative(v, v)
         v /= n
