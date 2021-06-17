@@ -1,8 +1,6 @@
 import collections
 from numbers import Number
 
-from lib import integer_types, numeric_types
-
 __author__ = 'Alex Pyattaev'
 
 trantab = dict(map(lambda x: (ord(x), None), '"\'\\%'))

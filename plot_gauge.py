@@ -1,8 +1,8 @@
 from typing import Tuple
 
+import numpy as np
 from matplotlib import cm
 from matplotlib import pyplot as plt
-import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.patches import Circle, Wedge, Rectangle
 

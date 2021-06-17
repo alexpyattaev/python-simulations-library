@@ -10,23 +10,24 @@ import numpy as np
 
 from lib.numba_opt import double, jit_hardcore
 from lib.stuff import EPS, sign
-from lib.transformations.transform_tools import _NEXT_AXIS, AXES2TUPLE, is_same_transform
-from lib.vectors import norm
+from lib.transformations.transform_tools import _NEXT_AXIS, AXES2TUPLE
+from lib.vectors import norm, vector
+
 __docformat__ = 'restructuredtext en'
 
 
-
 @jit_hardcore
-def vector_to_euler(vector: np.ndarray):
+def vector_to_euler(v: np.ndarray):
     """
     Return roll, pitch and yaw for given offset vector
-    :param vector: The offset vector in cartesian coordinates
+    :param v: The offset vector in cartesian coordinates
     :return: the pitch and yaw angles to match vector. Roll is always 0
     """
-    vector = vector / norm(vector)
-    yaw = np.arctan2(vector[1], vector[0])
-    pitch = np.arcsin(vector[2])
-    return np.array(0, pitch, yaw)
+    v = v / norm(v)
+    yaw = np.arctan2(v[1], v[0])
+    pitch = np.arcsin(v[2])
+    return vector(0.0, pitch, yaw)
+
 
 @jit_hardcore
 def euler_from_matrix(matrix: np.ndarray, axes: str = 'sxyz') -> Tuple[float, float, float]:

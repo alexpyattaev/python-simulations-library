@@ -1,8 +1,9 @@
 """
 Based on the work in https://github.com/eric-wieser/numpy_ringbuffer/blob/master/numpy_ringbuffer/__init__.py
 """
-import numpy as np
 from collections.abc import Sequence
+
+import numpy as np
 
 
 class NP_Ring_Buffer(Sequence):

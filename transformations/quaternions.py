@@ -13,8 +13,7 @@ True
 
 """
 from math import cos, sin, sqrt, acos, atan2, tau, asin, pi
-from typing import NewType
-import numpy.typing as npt
+
 import numpy as np
 
 from lib.numba_opt import double, jit_hardcore
@@ -22,8 +21,6 @@ from lib.stuff import EPS
 from lib.transformations.euler_angles import euler_from_matrix, wrap_angle
 from lib.transformations.transform_tools import _NEXT_AXIS, AXES2TUPLE, is_same_transform, transform_matrix
 from lib.vectors import vector_normalize, orthogonal, norm, origin, xaxis, yaxis, zaxis
-
-
 
 _default_q = np.array((1.0, 0.0, 0.0, 0.0), dtype=np.float64)
 
@@ -420,6 +417,7 @@ def derivative(q, rate: np.ndarray):
     return c
 
 
+@jit_hardcore
 def quaternion_integrate(q, rate: np.ndarray, timestep: double):
     """Advance a time varying quaternion to its value at a time `timestep` in the future.
 
@@ -447,7 +445,7 @@ def quaternion_integrate(q, rate: np.ndarray, timestep: double):
         axis = rotation_vector / rotation_norm
         angle = rotation_norm
         q2 = quaternion_from_axis_angle(axis=axis, angle=angle)
-        return quaternion_normalize(quaternion_multiply(q * q2))
+        return quaternion_normalize(quaternion_multiply(q, q2))
     else:
         raise ValueError("Rotation norm is null!")
 

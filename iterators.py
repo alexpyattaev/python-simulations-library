@@ -1,7 +1,7 @@
 __author__ = 'Alex Pyattaev'
 
 import unittest
-from typing import List, Dict, Iterable
+from typing import List, Dict
 
 
 def loop_over(iterable):

@@ -1,6 +1,6 @@
 from typing import MutableMapping, MutableSet, List, Hashable, Callable
 
-from lib import ANY
+from lib.stuff import ANY
 
 
 class Timeout_Set(MutableSet):

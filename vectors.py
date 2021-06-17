@@ -1,8 +1,8 @@
 __docformat__ = 'restructuredtext en'
 
 from math import sqrt
-from numbers import Number
-from typing import Sequence, Tuple, Iterable
+from typing import Sequence, Tuple
+
 import numpy as np
 
 from lib.numba_opt import jit_hardcore

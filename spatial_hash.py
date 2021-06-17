@@ -1,8 +1,8 @@
 
-from debug_log import *
 import numpy as np
-from lib import hexgrid
 
+from debug_log import *
+from lib import hexgrid
 
 __author__ = 'Alex Pyattaev'
 

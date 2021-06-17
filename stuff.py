@@ -1,10 +1,11 @@
 import inspect
+import os
 import sys
-import pytest
 from math import log, pi
 from typing import Union, Callable, Iterable, Dict
-import os
+
 import numpy as np
+import pytest
 from scipy.constants import constants
 
 from lib.numba_opt import jit_hardcore
@@ -346,7 +347,7 @@ class Do_Not_Copy:
     def __copy__(self):
         raise RecursionError(f"One should not make copies of {self.__class__.__name__} object!")
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memodict=None):
         raise RecursionError(f"One should not make deep copies of {self.__class__.__name__} object!")
 
 

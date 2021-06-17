@@ -1,20 +1,19 @@
 import os
 import pickle
-from itertools import repeat, count
+from itertools import repeat
 from typing import List, Union, Callable, Tuple, Iterable, Dict
 
+import matplotlib as mpl
+import matplotlib.cm as cm
+import matplotlib.figure
+import matplotlib.ticker
+import mpl_toolkits
+import mpl_toolkits.mplot3d
 import numpy as np
 from matplotlib import cycler
 from matplotlib.pyplot import subplots, show
-from scipy.signal import get_window
 from scipy.interpolate import interp1d
-import matplotlib as mpl
-import matplotlib.figure
-import matplotlib.cm as cm
-import matplotlib.ticker
-
-import mpl_toolkits
-import mpl_toolkits.mplot3d
+from scipy.signal import get_window
 
 plot_opts_imshow_waterfall = dict(aspect="auto", interpolation="nearest", origin='lower')
 

@@ -1,13 +1,12 @@
-from math import sqrt, sin, cos, pi, atan2, floor, ceil
+import itertools
+from math import sqrt, sin, cos, pi, ceil
 
+from debug_log import warn
+from lib import rng
 from lib.transformations.euler_angles import wrap_angle
 from lib.vectors import norm
-from lib import rng
-import numpy as np
-import itertools
-from debug_log import warn
-
 from .numba_opt import *
+
 __author__ = 'Alex Pyattaev'
 
 def hexgrid_polygon(x, y, r, closed=False):

@@ -2,16 +2,15 @@ import os
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
 from itertools import chain
-from typing import List, Tuple, Dict, NamedTuple, Callable
+from typing import List, Tuple, Dict, NamedTuple
 
+import matplotlib.cm as cm
+import numpy as np
 from pymongo import DESCENDING, MongoClient
 from pymongo.collection import Collection, ReturnDocument
 from pymongo.database import Database
 
-import numpy as np
-
-from lib import color_print_warning, color_print_okblue, stub
-import matplotlib.cm as cm
+from lib.stuff import color_print_warning, color_print_okblue
 
 
 def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem",
@@ -112,6 +111,7 @@ def mongo_make_colors(coll, key, cmap=None):
         if len(all_) < 5:
             cmap = cm.brg
         else:
+            # noinspection PyUnresolvedReferences
             cmap = cm.viridis
 
     COLORS = [cmap(i) for i in np.linspace(0, 1, len(all_))]

@@ -1,8 +1,9 @@
-from typing import Tuple, Iterable, Union
 import unittest
+from typing import Tuple, Iterable, Union
+
 import numpy as np
-from scipy.special._ufuncs import expit
 from scipy import signal
+from scipy.special._ufuncs import expit
 
 
 class Stateful_Linear_Filter:

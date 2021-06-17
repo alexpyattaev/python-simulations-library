@@ -171,18 +171,18 @@ True
 
 
 """
-from typing import Tuple
-from math import sqrt, sin, cos, asin, atan2, atan, tan
 from math import pi
+from math import sqrt, sin, cos, asin, atan2, atan, tan
+from typing import Tuple
+
 import numpy as np
 
+from lib.numba_opt import jit_hardcore, double, complex128
+from lib.stuff import EPS
 from lib.transformations.euler_angles import euler_matrix
-from lib.transformations.quaternions import quaternion_to_transform_matrix, quaternion_to_transformation_matrix,\
+from lib.transformations.quaternions import quaternion_to_transform_matrix, quaternion_to_transformation_matrix, \
     random_quaternion, quaternion_from_matrix
 from lib.transformations.transform_tools import is_same_transform, concatenate_matrices
-
-from lib.stuff import EPS
-from lib.numba_opt import jit_hardcore, double, complex128
 from lib.vectors import vector, norm, unit_vector, angle_between_vectors, origin as _origin, xaxis, zaxis
 
 __docformat__ = 'restructuredtext en'

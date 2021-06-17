@@ -1,8 +1,9 @@
 from functools import partial
+
 import numpy as np
 import numpy.random as nprandom
-from debug_log import error
 
+from debug_log import error
 
 _rng = nprandom.RandomState()
 

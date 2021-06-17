@@ -3,7 +3,7 @@ from typing import Union, Sized
 import scipy
 import scipy.interpolate
 import numpy as np
-from lib import speed_of_light
+from lib.stuff import speed_of_light
 
 
 def apply_doppler(signal: np.ndarray, relative_speed: Union[np.ndarray, float],
@@ -53,7 +53,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     SAMPLERATE = int(10e6)
-    CARRIER = 80e9
     CARRIER = 10e9
     N_SAMPLES = 2 ** 14
     PAD = 1000

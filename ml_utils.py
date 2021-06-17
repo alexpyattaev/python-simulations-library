@@ -4,12 +4,10 @@ ML related utility functions for data conditioning (mostly tensorflow)
 import itertools
 import os
 import unittest
-from collections import namedtuple
-from typing import Union, Iterable, Tuple, List, NamedTuple, Dict
+from typing import Union, Iterable, Tuple, List, Dict
 
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras.callbacks import Callback

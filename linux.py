@@ -6,16 +6,13 @@ import mmap
 import os
 import unittest
 import warnings
-
 from hashlib import md5
 from typing import Tuple, Iterable, BinaryIO
 
 import psutil
 
 try:
-    from xdg import BaseDirectory as _BaseDirectory
-
-    BaseDirectory = _BaseDirectory
+    from xdg import BaseDirectory
 except ImportError:
     BaseDirectory = None
 

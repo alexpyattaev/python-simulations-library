@@ -1,12 +1,7 @@
-
-import sys
 import numpy as np
 from numpy import array
 
-from numpy import concatenate
-from numpy import sum
 from numpy.linalg.linalg import pinv
-from numpy.linalg.linalg import LinAlgError
 from scipy.spatial.distance import euclidean
 
 

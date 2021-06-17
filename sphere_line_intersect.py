@@ -1,10 +1,11 @@
 from typing import List
 
 
-from numpy import sum, sqrt, array, ndarray
-from lib import jit_hardcore, jit
+from numpy import sum, sqrt, ndarray, NaN, full
+from lib.numba_opt import jit_hardcore
 
 
+@jit_hardcore
 def line_sphere_intersection(line_point1: ndarray, line_point2: ndarray,
                              sphere_center: ndarray, sphere_radius: float,
                              is_ray: bool = False) -> List[ndarray]:
@@ -31,15 +32,15 @@ def line_sphere_intersection(line_point1: ndarray, line_point2: ndarray,
     D = B * B - 4 * A * C
 
     if D < 0:
-        return []
+        return [full(3, NaN), full(3, NaN)]
 
     t1 = (- B - sqrt(D)) / (2.0 * A)
     solution1 = line_point1 * (1 - t1) + line_point2 * t1
 
     if D == 0:
         if is_ray and t1 < 0:
-            return []
-        return [solution1, ]
+            return [full(3, NaN), full(3, NaN)]
+        return [solution1, full(3, NaN)]
 
     t2 = (- B + sqrt(D)) / (2.0 * A)
     solution2 = line_point1 * (1 - t2) + line_point2 * t2
@@ -48,15 +49,16 @@ def line_sphere_intersection(line_point1: ndarray, line_point2: ndarray,
         if t1 > 0 and t2 > 0:
             return [solution1, solution2]
         elif (t1 > 0) and (t2 < 0):
-            return [solution1, ]
+            return [solution1, full(3, NaN)]
         elif (t1 < 0) and (t2 > 0):
-            return [solution2, ]
+            return [solution2, full(3, NaN)]
         else:
-            return []
+            return [full(3, NaN), full(3, NaN)]
 
     return [solution1, solution2]
 
 
+@jit_hardcore
 def ray_sphere_intersection(origin: ndarray, direction: ndarray, sphere_pos: ndarray, sphere_R: float) -> List[ndarray]:
     """Returns the two points which are the intersection of the given line and sphere.
     :param origin: [x0 y0 z0]
@@ -88,13 +90,13 @@ def ray_sphere_intersection(origin: ndarray, direction: ndarray, sphere_pos: nda
             # convert into 3D coordinate
             return [origin + u1 * direction, origin + u2 * direction]
         elif u1 > 0:
-            return [origin + u1 * direction]
+            return [origin + u1 * direction,full(3, NaN)]
         elif u2 > 0:
-            return [origin + u2 * direction]
+            return [origin + u2 * direction,full(3, NaN)]
         else:
-            return []
+            return [full(3, NaN),full(3, NaN)]
     else:
         # delta negative: no solution
-        return []
+        return [full(3, NaN),full(3, NaN)]
 
 

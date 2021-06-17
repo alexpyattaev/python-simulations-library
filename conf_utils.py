@@ -2,12 +2,12 @@
 
 Uses plain text files or Mongodb v3 for actual storage"""
 import datetime
-from functools import reduce
 import itertools
+from functools import reduce
+from operator import mul
 from typing import Iterable
 
 from pymongo.collection import Collection
-from operator import mul
 
 __encoding__ = "utf-8"
 __author__ = 'Alex Pyattaev'

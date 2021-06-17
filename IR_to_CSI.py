@@ -78,7 +78,7 @@ CSI_sampling = IR_to_CSI
 
 if __name__=="__main__":
     import matplotlib.pyplot as plt
-    from lib import speed_of_light
+    from lib.stuff import speed_of_light
     import scipy
     resample = scipy.signal.resample
     f, [[ax1, ax2], [iax1, iax2]] = plt.subplots(2,2)
