@@ -2,7 +2,7 @@ import argparse
 import dataclasses
 from enum import EnumMeta
 from io import  IOBase
-from typing import Callable, Union, Dict
+from typing import Callable, Union, Dict, TypeVar, Type
 
 __all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'File', 'Bool', 'List', 'parse_to', 'Arg_Container')
 
@@ -127,8 +127,9 @@ autocast_types = {int: Int,
                   bool: Bool}
 
 
-def parse_to(container_class, epilog: str = "", transform_names: Callable[[str], str] = None,
-             verbose: bool = False, args=None):
+T = TypeVar('T')
+def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callable[[str], str] = None,
+             verbose: bool = False, args=None) -> T:
     """
     Parse command line using argparse into the provided container class.
 
