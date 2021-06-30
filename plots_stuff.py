@@ -11,9 +11,11 @@ import mpl_toolkits
 import mpl_toolkits.mplot3d
 import numpy as np
 from matplotlib import cycler
+from matplotlib.colors import Normalize
 from matplotlib.pyplot import subplots, show
 from scipy.interpolate import interp1d
 from scipy.signal import get_window
+from numpy import ma
 
 plot_opts_imshow_waterfall = dict(aspect="auto", interpolation="nearest", origin='lower')
 
@@ -57,7 +59,8 @@ def matplotlib_WINTER_style():
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
 
 
-def plot_timelines(data: Dict[str, np.ndarray], colors=None, time_axis=None, fig_args=None, ax_args=None)-> mpl.figure.Figure:
+def plot_timelines(data: Dict[str, np.ndarray], colors=None, time_axis=None, fig_args=None,
+                   ax_args=None) -> mpl.figure.Figure:
     if fig_args is None:
         fig_args = {'figsize': [14, 10]}
     if ax_args is None:
@@ -81,7 +84,6 @@ def plot_timelines(data: Dict[str, np.ndarray], colors=None, time_axis=None, fig
         all_handles += handles
         all_labels += labels
         ax.grid()
-
 
     f.legend(all_handles, all_labels, 'right')
     return f
@@ -423,21 +425,14 @@ def setticks(ax, stepsize=1) -> None:
     ax.get_yaxis().set_major_locator(matplotlib.ticker.MultipleLocator(base=stepsize))
 
 
-def draw_hexes(vertices: np.ndarray, color: str, linestyle: str, linewidth: int):
-    import matplotlib.pyplot as plt
-    for hex in vertices:
-        for i in range(len(hex)):
-            start = hex[i]
-            if i + 1 == len(hex):
-                end = hex[0]
-            else:
-                end = hex[i + 1]
-            # print(f"Drawing line from {start} to {end}")
-            plt.plot(np.array([start[0], end[0]]), np.array([start[1], end[1]]), color=color, linestyle=linestyle,
-                     linewidth=linewidth)
+def draw_polygons(ax: matplotlib.figure.Axes, vertices: np.ndarray, color: str, linestyle: str = '-',
+                  linewidth: int = 1):
+    """Draw vertices (e.g. for cells) given array of polygon points"""
+    for arr in vertices:
+        ax.plot(arr[:, 0], arr[:, 1], color=color, linestyle=linestyle, linewidth=linewidth)
 
 
-def power_scale_axes(ax: matplotlib.figure.Axes, axes: str="x", scale: float=0.7) -> None:
+def power_scale_axes(ax: matplotlib.figure.Axes, axes: str = "x", scale: float = 0.7) -> None:
     """
 
     :param ax: axes object to operate on
@@ -445,12 +440,175 @@ def power_scale_axes(ax: matplotlib.figure.Axes, axes: str="x", scale: float=0.7
     :param scale: power scale to apply
 
     """
+
     def compress(x, pow=scale):
         return np.sign(x) * (np.abs(x) ** pow)
 
     def decompress(x, pow=scale):
         return x ** 1 / pow
+
     if "x" in axes:
         ax.set_xscale('function', functions=(compress, decompress))
     if "y" in axes:
         ax.set_yscale('function', functions=(compress, decompress))
+
+
+def remappedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
+    '''
+    Function to offset the median value of a colormap, and scale the
+    remaining color range. Useful for data with a negative minimum and
+    positive maximum where you want the middle of the colormap's dynamic
+    range to be at zero.
+
+    Taken from https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
+    https://github.com/TheChymera/chr-helpers/blob/d05eec9e42ab8c91ceb4b4dcc9405d38b7aed675/chr_matplotlib.py
+    Input
+    -----
+      cmap : The matplotlib colormap to be altered
+      start : Offset from lowest point in the colormap's range.
+          Defaults to 0.0 (no lower ofset). Should be between
+          0.0 and 0.5; if your dataset mean is negative you should leave
+          this at 0.0, otherwise to (vmax-abs(vmin))/(2*vmax)
+      midpoint : The new center of the colormap. Defaults to
+          0.5 (no shift). Should be between 0.0 and 1.0; usually the
+          optimal value is abs(vmin)/(vmax+abs(vmin))
+      stop : Offset from highets point in the colormap's range.
+          Defaults to 1.0 (no upper ofset). Should be between
+          0.5 and 1.0; if your dataset mean is positive you should leave
+          this at 1.0, otherwise to (abs(vmin)-vmax)/(2*abs(vmin))
+    '''
+    cdict = {
+        'red': [],
+        'green': [],
+        'blue': [],
+        'alpha': []
+    }
+
+    # regular index to compute the colors
+    reg_index = np.hstack([
+        np.linspace(start, 0.5, 128, endpoint=False),
+        np.linspace(0.5, stop, 129)
+    ])
+
+    # shifted index to match the data
+    shift_index = np.hstack([
+        np.linspace(0.0, midpoint, 128, endpoint=False),
+        np.linspace(midpoint, 1.0, 129)
+    ])
+
+    for ri, si in zip(reg_index, shift_index):
+        r, g, b, a = cmap(ri)
+
+        cdict['red'].append((si, r, r))
+        cdict['green'].append((si, g, g))
+        cdict['blue'].append((si, b, b))
+        cdict['alpha'].append((si, a, a))
+
+    newcmap = matplotlib.colors.LinearSegmentedColormap(name, cdict)
+    cm.register_cmap(cmap=newcmap)
+
+    return newcmap
+
+
+def test_shifted_colormap():
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.axes_grid1 import AxesGrid
+
+    biased_data = np.random.random_integers(low=-15, high=5, size=(37, 37))
+
+    orig_cmap = matplotlib.cm.coolwarm
+    shifted_cmap = remappedColorMap(orig_cmap, midpoint=0.75, name='shifted')
+    shrunk_cmap = remappedColorMap(orig_cmap, start=0.15, midpoint=0.75, stop=0.85, name='shrunk')
+
+    fig = plt.figure(figsize=(6, 6))
+    grid = AxesGrid(fig, 111, nrows_ncols=(2, 2), axes_pad=0.5,
+                    label_mode="1", share_all=True,
+                    cbar_location="right", cbar_mode="each",
+                    cbar_size="7%", cbar_pad="2%")
+
+    # normal cmap
+    im0 = grid[0].imshow(biased_data, interpolation="none", cmap=orig_cmap)
+    grid.cbar_axes[0].colorbar(im0)
+    grid[0].set_title('Default behavior (hard to see bias)', fontsize=8)
+
+    im1 = grid[1].imshow(biased_data, interpolation="none", cmap=orig_cmap, vmax=15, vmin=-15)
+    grid.cbar_axes[1].colorbar(im1)
+    grid[1].set_title('Centered zero manually,\nbut lost upper end of dynamic range', fontsize=8)
+
+    im2 = grid[2].imshow(biased_data, interpolation="none", cmap=shifted_cmap)
+    grid.cbar_axes[2].colorbar(im2)
+    grid[2].set_title('Recentered cmap with function', fontsize=8)
+
+    im3 = grid[3].imshow(biased_data, interpolation="none", cmap=shrunk_cmap)
+    grid.cbar_axes[3].colorbar(im3)
+    grid[3].set_title('Recentered cmap with function\nand shrunk range', fontsize=8)
+
+    for ax in grid:
+        ax.set_yticks([])
+        ax.set_xticks([])
+    if 'INTERACTIVE' in os.environ:
+        plt.show()
+
+
+class MidPointNorm(Normalize):
+    def __init__(self, midpoint=0, vmin=None, vmax=None, clip=False):
+        Normalize.__init__(self, vmin, vmax, clip)
+        self.midpoint = midpoint
+
+    def __call__(self, value, clip=None):
+        if clip is None:
+            clip = self.clip
+
+        result, is_scalar = self.process_value(value)
+
+        self.autoscale_None(result)
+        vmin, vmax, midpoint = self.vmin, self.vmax, self.midpoint
+
+        if not (vmin < midpoint < vmax):
+            raise ValueError("midpoint must be between maxvalue and minvalue.")
+        elif vmin == vmax:
+            result.fill(0)  # Or should it be all masked? Or 0.5?
+        elif vmin > vmax:
+            raise ValueError("maxvalue must be bigger than minvalue")
+        else:
+            vmin = float(vmin)
+            vmax = float(vmax)
+            if clip:
+                mask = ma.getmask(result)
+                result = ma.array(np.clip(result.filled(vmax), vmin, vmax),
+                                  mask=mask)
+
+            # ma division is very slow; we can take a shortcut
+            resdat = result.data
+
+            # First scale to -1 to 1 range, than to from 0 to 1.
+            resdat -= midpoint
+            resdat[resdat > 0] /= abs(vmax - midpoint)
+            resdat[resdat < 0] /= abs(vmin - midpoint)
+
+            resdat /= 2.
+            resdat += 0.5
+            result = ma.array(resdat, mask=result.mask, copy=False)
+
+        if is_scalar:
+            result = result[0]
+        return result
+
+    def inverse(self, value):
+        if not self.scaled():
+            raise ValueError("Not invertible until scaled")
+        vmin, vmax, midpoint = self.vmin, self.vmax, self.midpoint
+
+        if isinstance(value, Iterable):
+            val = ma.asarray(value)
+            val = 2 * (val - 0.5)
+            val[val > 0] *= abs(vmax - midpoint)
+            val[val < 0] *= abs(vmin - midpoint)
+            val += midpoint
+            return val
+        else:
+            val = 2 * (value - 0.5)
+            if val < 0:
+                return val * abs(vmin - midpoint) + midpoint
+            else:
+                return val * abs(vmax - midpoint) + midpoint

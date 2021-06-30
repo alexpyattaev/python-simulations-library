@@ -105,7 +105,8 @@ def pos_around_hex(x1, y1, r_min, r_max, num_points=1):
 
     assert r_max > 0
     assert r_max > r_min
-    assert num_points > 0
+    if num_points == 0:
+        return
 
     while num_points > 0:
         # Choose random "sector" of 120 degrees

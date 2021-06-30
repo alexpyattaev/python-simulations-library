@@ -1,59 +1,45 @@
-
 import numpy as np
 
 from debug_log import *
 from lib import hexgrid
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 __author__ = 'Alex Pyattaev'
 
 
 class Spatial_Hash_Grid(object):
-    def __init__(self, cell_size=10, grid_size=50, object_classes=("TX", "RX"), layout=None, **kwargs):
-        assert (grid_size % 2 == 0), "The grid size must be even integer number"
+    def __init__(self, cell_size=10, grid_size_cells=50, object_classes=("TX", "RX")):
+        assert grid_size_cells < 100, "Using over 10000 grid cells is a bad idea!"
+        assert (grid_size_cells % 2 == 0), "The grid size must be even integer number"
         self.object_grids = dict()
         # Create object grids for all objects of interest
         for c in object_classes:
-            self.object_grids[c] = np.array([[set() for x in range(grid_size)] for y in range(grid_size)], dtype=object)
-        self.wrap_pointers = np.array([[[-1,-1] for x in range(grid_size)] for y in range(grid_size)], dtype=int)
-        self.wrap_transforms = np.array([[0 for x in range(grid_size)] for y in range(grid_size)], dtype=int)
+            self.object_grids[c] = np.array([[set() for _ in range(grid_size_cells)] for _ in range(grid_size_cells)], dtype=object)
 
-        self.g_half = grid_size // 2
+        self.g_half = grid_size_cells // 2
         self.cell_size = cell_size
         self.items = {}
 
-        self.layout = layout
-        self.canvas = None
-        self.axes = None
-        if layout == "7CELL":
-            self.R = kwargs["cell_R"]
-            cells = hexgrid.hexgrid_cells(7)
-            for c in cells:
-                poly = hexgrid.hexgrid_polygon(c[0], c[1], r)
-        elif layout == "BOX":
-            pass
-        elif layout is None:
-            pass
-        else:
-            raise ValueError("Unsupported layout " + str(layout))
-
-    def change_cell(self, pos: np.ndarray, item: object, object_class:str):
+    def change_cell(self, pos: np.ndarray, item: object, object_class: str):
 
         # Is this really needed? Maybe assume that cells never change during lifetime of a session?
         try:
-            old_cell = self.items[(object_class, item)]
-            old_cell.remove(item)
+            self.items[(object_class, item)].remove(item)
         except KeyError:
             pass
 
         c = self[object_class, pos[0:2]]
-        debug("Adding to cell {}", (c,))
+        # debug("Adding to cell {}", c)
         c.add(item)
         self.items[(object_class, item)] = c
 
-    def __getitem__(self, item ) -> set:
+    def __getitem__(self, item) -> set:
         """
         Return the cell pointer based on coordinates in meters
-        :param pos_m: position tuple or array in meters
+        :param item: tuple of (object class, position array in meters)
         """
         object_class, pos_m = item
         x_m, y_m = pos_m
@@ -61,10 +47,7 @@ class Spatial_Hash_Grid(object):
         y = int(y_m / self.cell_size) + self.g_half
         return self.object_grids[object_class][x, y]
 
-    def init_wraparound(self):
-        raise NotImplementedError()
-
-    def select_circle(self, x_m: float, y_m: float, R_m: float, object_class:str, coord_mode=False)->set:
+    def select_circle(self, x_m: float, y_m: float, R_m: float, object_class: str, coord_mode=False) -> set:
         """
         Returns an iterator over cells in the hash that are around a given center point.
 
@@ -73,6 +56,7 @@ class Spatial_Hash_Grid(object):
         :param x_m: X coordinate of the source in meters
         :param y_m: Y coordinate of the source in meters
         :param R_m: Radius of coverage in meters
+        :param object_class: name of object to select
         :param coord_mode: set True to return raw cell coords.
         :returns: iterator of cell pointers to be visited
         """
@@ -81,8 +65,10 @@ class Spatial_Hash_Grid(object):
         y_m = int(y_m / self.cell_size) + self.g_half
         R = int(np.ceil(R_m / self.cell_size))
         if R > 20:
-            raise ValueError(f"Selecting {int(np.pi*R**2)} spatial hash cells is a terrible idea, maybe change SLS.PIXEL_SIZE?")
+            raise ValueError(f"Selecting {int(np.pi * R ** 2)} spatial hash cells"
+                             f" is a terrible idea, maybe change spatial hash cell_size parameter?")
         gmax = self.g_half * 2
+        grid = self.object_grids[object_class]
         if R < 2:
             for dx in range(-R, R + 1):
                 for dy in range(-R, R + 1):
@@ -90,7 +76,7 @@ class Spatial_Hash_Grid(object):
                         if coord_mode:
                             yield [x_m + dx, y_m + dy]
                         else:
-                            c = self.object_grids[object_class][x_m + dx, y_m + dy]
+                            c = grid[x_m + dx, y_m + dy]
                             if c:
                                 yield c
                             else:
@@ -112,7 +98,7 @@ class Spatial_Hash_Grid(object):
                             if coord_mode:
                                 yield [x_m - dx, y_m + y]
                             else:
-                                c = self.object_grids[object_class][x_m - dx, y_m + y]
+                                c = grid[x_m - dx, y_m + y]
                                 if c:
                                     yield c
                                 else:
@@ -123,14 +109,14 @@ class Spatial_Hash_Grid(object):
                             if coord_mode:
                                 yield [x_m + dx, y_m - y]
                             else:
-                                c = self.object_grids[object_class][x_m + dx, y_m - y]
+                                c = grid[x_m + dx, y_m - y]
                                 if c:
                                     yield c
                                 else:
                                     continue
                 draw = False
                 r = err
-                if (r <= y):
+                if r <= y:
                     y += 1
                     err += y * 2 + 1  # e_xy+e_y < 0
                     draw = True
@@ -140,7 +126,7 @@ class Spatial_Hash_Grid(object):
                 if x > 0:
                     break
 
-    def select_line(self, x_0: float, y_0: float, x_1: float,y_1: float, object_class:str, coord_mode=False) -> set:
+    def select_line(self, x_0: float, y_0: float, x_1: float, y_1: float, object_class: str, coord_mode=False) -> set:
         """
         Returns an iterator over cells in the hash that are around a given center point.
 
@@ -150,10 +136,10 @@ class Spatial_Hash_Grid(object):
         :param y_0: Y coordinate of the source in meters
         :param x_1: X coordinate of the dest in meters
         :param y_1: Y coordinate of the dest in meters
+        :param object_class: object class to select
         :param coord_mode: set True to return raw cell coords.
         :returns: iterator of cell pointers to be visited
         """
-
 
         # Bresenham's algo borrowed from http://members.chello.at/easyfilter/bresenham.html
         dx = abs(x_1 - x_0)
@@ -161,24 +147,25 @@ class Spatial_Hash_Grid(object):
         dy = -abs(y_1 - y_0)
         sy = [-1, 1][y_0 < y_1]
         err = dx + dy
+        grid = self.object_grids[object_class]
         while True:
             if coord_mode:
-                yield (x_0, y_0)
+                yield x_0, y_0
             else:
-                yield self.object_grids[object_class][x_0, y_0]
+                yield grid[x_0, y_0]
 
             if x_0 == x_1 and y_0 == y_1:
                 break
             e2 = 2 * err
-            if (e2 >= dy):
+            if e2 >= dy:
                 err += dy
                 x_0 += sx
 
-            if (e2 <= dx):
+            if e2 <= dx:
                 err += dx
                 y_0 += sy
 
-    def draw_cells(self, cell_list):
+    def draw_cells(self, cell_list, axes):
 
         patches = []
         for x, y in cell_list:
@@ -188,21 +175,20 @@ class Spatial_Hash_Grid(object):
         colors = np.full(len(patches), 50, dtype=int)
         patches = PatchCollection(patches, cmap=matplotlib.cm.jet, alpha=0.4)
         patches.set_array(colors)
-        self.axes.add_collection(patches)
+        axes.add_collection(patches)
 
-    def plot_self(self):
-        if self.canvas is None:
-            self.canvas = plt.figure()
-        self.canvas.clf()
+    def plot_self(self, figure=None):
+        if figure is None:
+            figure = plt.figure()
 
-        self.axes = self.canvas.add_subplot(1, 1, 1)
+        axes = figure.add_subplot(1, 1, 1)
 
         plt.axis('equal')
         patches = []
         colors = []
         g_half = self.g_half
-        self.axes.set_xlim(np.array([-g_half * self.cell_size, g_half * self.cell_size]) * 1.2)
-        self.axes.set_ylim(np.array([-g_half * self.cell_size, g_half * self.cell_size]) * 1.2)
+        axes.set_xlim(np.array([-g_half * self.cell_size, g_half * self.cell_size]) * 1.2)
+        axes.set_ylim(np.array([-g_half * self.cell_size, g_half * self.cell_size]) * 1.2)
         for x in range(-g_half, g_half):
             for y in range(-g_half, g_half):
                 t = (np.array([[0, 0], [0, 1], [1, 1], [1, 0]]) + np.array([x, y])) * self.cell_size
@@ -217,44 +203,28 @@ class Spatial_Hash_Grid(object):
         patches = PatchCollection(patches, cmap=matplotlib.cm.jet, alpha=0.4)
         colors = np.array(colors)
         patches.set_array(np.array(colors))
-        self.axes.add_collection(patches)
-
-        if self.layout is not None:
-            # cells = hexgrid.hexgrid_cells(19)
-            cells = hexgrid.hexgrid_cells(7)
-            for c in cells:
-                poly = hexgrid.hexgrid_polygon(c[0], c[1], r)
-                self.canvas.plot(poly[:, 0], poly[:, 1])
-            phi = np.arange(0, 2 * np.pi, 0.01)
-            self.canvas.plot(np.cos(phi) * 2 * r, np.sin(phi) * 2 * r)
+        axes.add_collection(patches)
+        return figure, axes
 
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    import matplotlib
-    from matplotlib.patches import Polygon
-    from matplotlib.collections import PatchCollection
+def test_spatial_hashing():
+    from lib.hexgrid import HexgridCluster
+    grid = Spatial_Hash_Grid(cell_size=10, grid_size_cells=50)
 
-    grid = Spatial_Hash_Grid(10, 50)
-    class Foo():
-        pass
-
-    grid.change_cell(pos=np.array([20,30,0]), item="TEST", object_class="TX")
+    grid.change_cell(pos=np.array([20, 30, 0]), item="TEST", object_class="TX")
     grid.change_cell(pos=np.array([20, 50, 0]), item="TEST", object_class="TX")
     grid.change_cell(pos=np.array([20, 70, 0]), item="TEST", object_class="RX")
-    cells = list(grid.select_circle(30,20,30, object_class="TX", coord_mode=True))
+    cells = list(grid.select_circle(30, 20, 30, object_class="TX", coord_mode=True))
 
-    grid.plot_self()
-    grid.draw_cells(cells)
+    f, ax = grid.plot_self()
+    grid.draw_cells(cells, axes=ax)
 
     for c in grid.select_circle(30, 20, 30, object_class="TX"):
         print(c)
     r = 100
     plt.figure()
 
-
-    # cells = hexgrid.hexgrid_cells(19)
-    cells = hexgrid.hexgrid_cells(7)
+    cells = hexgrid.hexgrid_cells(HexgridCluster.SEVEN)
     for c in cells:
         poly = hexgrid.hexgrid_polygon(c[0], c[1], r)
         plt.plot(poly[:, 0], poly[:, 1])
