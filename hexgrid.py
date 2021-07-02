@@ -168,7 +168,7 @@ def hexgrid_cells(cluster_size: HexgridCluster):
         t1 = np.array([(0, 0), (0, -1), (-1, -1)])
         t2 = np.array([(0, -1), (1, 0), (0, 0)])
         t3 = np.array([(0, 0), (0, -1), (1, 0)])
-        return np.concatenate((t1, t2 + np.array([1, -1]), t3 + np.array([-1, -2])))
+        return np.concatenate((t1, t2 + np.array([1, -1]), t3 + np.array([-1, -2])))+np.array([0, 1])
     elif cluster_size == HexgridCluster.SEVEN:
         return np.array([(0, 0), (0, -1), (1, -1), (-1, -1), (-1, 0), (0, 1), (1, 0)])
     elif cluster_size == HexgridCluster.NINETEEN:
@@ -189,7 +189,7 @@ def test_hexgrid_cells():
     cs2 = hexgrid_cells(HexgridCluster.SEVEN)
     assert np.all(cs1 == cs2), "Should take ints and enum"
     I = os.environ.get('INTERACTIVE')
-    if I:
+    if I or True:
         import matplotlib.pyplot as plt
         # noinspection PyTypeChecker
         cs = hexgrid_cells(3)
