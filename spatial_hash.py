@@ -24,10 +24,7 @@ class Spatial_Hash_Grid(object):
         self.items = {}
 
     def remove_item(self, item: object, object_class: str):
-        try:
-            c = self.items[(object_class, item)].pop(item)
-        except KeyError:
-            return
+        c = self.items.pop((object_class, item))
         c.remove(item)
 
     def change_cell(self, pos: np.ndarray, item: object, object_class: str):
