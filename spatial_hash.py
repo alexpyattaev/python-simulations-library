@@ -23,6 +23,13 @@ class Spatial_Hash_Grid(object):
         self.cell_size = cell_size
         self.items = {}
 
+    def remove_item(self, item: object, object_class: str):
+        try:
+            c = self.items[(object_class, item)].pop(item)
+        except KeyError:
+            return
+        c.remove(item)
+
     def change_cell(self, pos: np.ndarray, item: object, object_class: str):
 
         # Is this really needed? Maybe assume that cells never change during lifetime of a session?
