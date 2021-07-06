@@ -19,7 +19,7 @@ class config_container(object):
 
 
 def unwrap_inner(params):
-    for K,V in list(params.items()):
+    for K, V in list(params.items()):
         if not isinstance(K, tuple):
             continue
         params.pop(K)
@@ -27,8 +27,8 @@ def unwrap_inner(params):
         for vset in V:
             vset = list(vset)
             for i, v in enumerate(vset):
-                if isinstance(v, str) or not  isinstance(v, Iterable):
-                    vset[i]= (v,)
+                if isinstance(v, str) or not isinstance(v, Iterable):
+                    vset[i] = (v,)
             for pset in itertools.product(*vset):
                 pset = list(pset)
 
@@ -123,6 +123,7 @@ class Experiment(object):
                 return len(v)
             except TypeError:
                 return 1
+
         if self.params:
             return reduce(mul, [ll(v) for v in self.params.values()]) * len(self.seeds)
         else:
@@ -150,7 +151,7 @@ class Trial(object):
         self.storage = storage
         self.seed = seed
         if isinstance(storage, Collection):
-            document = {"type": "TRIAL", "params": self.params, "seed":seed, "link": experiment.db_id}
+            document = {"type": "TRIAL", "params": self.params, "seed": seed, "link": experiment.db_id}
             res = storage.insert_one(document)
             self.db_id = res.inserted_id
         elif isinstance(storage, str):
