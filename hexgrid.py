@@ -85,16 +85,16 @@ def pos_on_cylinder(x, y, z, radius, z_delta):
     return x, y, z
 
 
-def pos_around_hex(x1, y1, r_min, r_max, num_points=1):
+def pos_around_hex(x1: float, y1: float, r_min: float, r_max: float, num_points: int = 1):
     """
     Generate random uniform points in a hex centered around x1, y1
 
     This can make infinite-ish loop if r_min is very close to r_max
 
-    :param x1: center location
-    :param y1: center location
-    :param r_min: minimal radial distance from hex center (can be zero)
-    :param r_max: maximal radial distance from hex center
+    :param x1: center location (float in meters)
+    :param y1: center location (float in meters)
+    :param r_min: minimal radial distance from hex center (float in meters, can be zero)
+    :param r_max: maximal radial distance from hex center (float in meters)
     :param num_points: total number of points to make. Will return a generator.
     :return: generator making the points.
     """
@@ -168,7 +168,7 @@ def hexgrid_cells(cluster_size: HexgridCluster):
         t1 = np.array([(0, 0), (0, -1), (-1, -1)])
         t2 = np.array([(0, -1), (1, 0), (0, 0)])
         t3 = np.array([(0, 0), (0, -1), (1, 0)])
-        return np.concatenate((t1, t2 + np.array([1, -1]), t3 + np.array([-1, -2])))+np.array([0, 1])
+        return np.concatenate((t1, t2 + np.array([1, -1]), t3 + np.array([-1, -2]))) + np.array([0, 1])
     elif cluster_size == HexgridCluster.SEVEN:
         return np.array([(0, 0), (0, -1), (1, -1), (-1, -1), (-1, 0), (0, 1), (1, 0)])
     elif cluster_size == HexgridCluster.NINETEEN:
