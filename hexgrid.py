@@ -1,45 +1,44 @@
-import itertools
 import os
 from enum import IntEnum
-from math import sqrt, sin, cos, pi, ceil
+from math import sqrt, sin, cos, pi
+from typing import Tuple, Iterable, List
 
 import numpy as np
 
-from debug_log import warn
 from guitools.dialogs import ask_user
 from lib import rng
-from lib.plots_stuff import plot_line
+from lib.grids.src.flat_topped_hex import hex_dist, hex_rect, hex_corners, hex_center, hex_neighbours, hex_disc, \
+    hex_shift
+
 from lib.transformations.euler_angles import wrap_angle
 from lib.vectors import norm
-from lib.numba_opt import jit_hardcore
 
+# Following advice from https://www.redblobgames.com/grids/hexagons/
 __author__ = 'Alex Pyattaev'
 
+HEX = Tuple[int, int, int]
 
-def hexgrid_polygon(x: int, y: int, r: float, closed: bool = False) -> np.ndarray:
-    pos_x, pos_y = hexgrid(x, y, r, with_sectors=False)
-    pts = []
-    for d in range(6):
-        ang = d * pi / 3
-        pts.append((pos_x + r * cos(ang), pos_y + r * sin(ang)))
+
+def hexgrid_polygon(h: HEX, r: float, closed: bool = False) -> np.ndarray:
+    pts = hex_corners(*h, edge_length=r)
     if closed:
         pts.append(pts[0])
     return np.array(pts)
 
 
-def hexgrid(x, y, r, with_sectors=True):
-    dx = r * 1.5
-    dy = r * sin(pi / 3)
-    y_shift = (x % 2) * dy
-    pos_x = x * dx
-    pos_y = 2 * y * dy + y_shift
+def hexgrid(h: HEX, r: float, with_sectors=True):
+    x, y, = hex_center(*h, edge_length=r)
     ang = []
     if with_sectors:
         for d in range(3):
             ang.append(wrap_angle(d * 2 / 3 * pi - pi / 6))
-        return pos_x, pos_y, ang
+        return x, y, ang
     else:
-        return pos_x, pos_y
+        return x, y
+
+
+def hexgrid_distance(start: HEX, dest: HEX):
+    return hex_dist(*start, *dest)
 
 
 def pos_sector(x, y, rmin, rmax, a):
@@ -50,39 +49,6 @@ def pos_sector(x, y, rmin, rmax, a):
     x += cos(a) * r
     y += sin(a) * r
     return x, y
-
-
-def pos_around(x, y, rmin, rmax):
-    r = np.sqrt(rng.uniform((rmin / rmax), 1.0))
-    r = r * rmax
-    a = rng.uniform(0, 2 * pi)
-    x += cos(a) * r
-    y += sin(a) * r
-    return x, y
-
-
-def pos_around_3d(x, y, z, rmin, rmax):
-    r = rng.uniform((rmin / rmax), 1.0)
-    r = r * rmax
-
-    phi = rng.uniform(0, 2 * pi)
-    theta = rng.uniform(0, pi)
-
-    x += r * sin(theta) * cos(phi)
-    y += r * sin(theta) * sin(phi)
-    z += r * cos(theta)
-
-    return x, y, z
-
-
-def pos_on_cylinder(x, y, z, radius, z_delta):
-    phi = rng.uniform(0, 2 * pi)
-
-    x += radius * cos(phi)
-    y += radius * sin(phi)
-    z += rng.uniform(-z_delta, z_delta)
-
-    return x, y, z
 
 
 def pos_around_hex(x1: float, y1: float, r_min: float, r_max: float, num_points: int = 1):
@@ -124,31 +90,6 @@ def pos_around_hex(x1: float, y1: float, r_min: float, r_max: float, num_points:
             yield val + (x1, y1)
 
 
-def plot_cell_sectors(ax, cx, cy, r: float, angles, colors=("red", "green", "blue")):
-    p0 = np.array([cx, cy])
-    for a, c in zip(angles, colors):
-        plot_line(ax, p0, p0 + np.array([cos(a), sin(a)]) * r, color=c, linewidth=3)
-
-
-@jit_hardcore
-def pos_around_square(x, y, x_side, y_side):
-    origin_x = x - (x_side / 2)
-    origin_y = y - (y_side / 2)
-    x = origin_x + rng.uniform(0, x_side)
-    y = origin_y + rng.uniform(0, y_side)
-    return x, y
-
-
-def hexgrid_in_box(box_x, box_y, r):
-    dy = r * sin(pi / 3)
-    y_shift = dy
-    pos_y = 2 * dy + y_shift
-    pos_init = [(i, j) for i in range(0, 1 + ceil(box_x / (1.5 * r))) for j in range(0, 2 + ceil(box_y / pos_y))]
-    results = []
-    for i in pos_init:
-        values = hexgrid(i[0], i[1], r)
-        results.append(values)
-    return results
 
 
 class HexgridCluster(IntEnum):
@@ -159,26 +100,28 @@ class HexgridCluster(IntEnum):
     NINETEEN = 19  # Single cell, and all its two-hop neighbors
 
 
-def hexgrid_cells(cluster_size: HexgridCluster):
+def hexgrid_cells(cluster_size: HexgridCluster) -> List[HEX]:
+    """
+    Return a cluster of hex cells with specific pattern.
+    :param cluster_size: the pattern to use. Use enum, please.
+    :return: list of hex coordinates
+    """
     if cluster_size == HexgridCluster.ONE:
-        return np.array([(0, 0)])
+        return [(0, 0, 0)]
     elif cluster_size == HexgridCluster.THREE:
-        return np.array([(0, 0), (0, -1), (1, -1)])
+        return [(0, 0, 0), (1, 0, -1), (1, -1, 0)]
     elif cluster_size == HexgridCluster.NINE:
-        t1 = np.array([(0, 0), (0, -1), (-1, -1)])
-        t2 = np.array([(0, -1), (1, 0), (0, 0)])
-        t3 = np.array([(0, 0), (0, -1), (1, 0)])
-        return np.concatenate((t1, t2 + np.array([1, -1]), t3 + np.array([-1, -2]))) + np.array([0, 1])
+        sh2 = (3, -3, 0)
+        sh3 = (2, 0, -2)
+        z = [(0, 0, 0), (1, 0, -1), (1, -1, 0),
+             hex_shift(-1, 1, 0, *sh2), hex_shift(0, 1, -1, *sh2), hex_shift(-1, 2, -1, *sh2),
+             hex_shift(0, 0, 0, *sh3), hex_shift(1, 0, -1, *sh3), hex_shift(1, -1, 0, *sh3)]
+        return [hex_shift(*i, -2, 1, 1) for i in z]
+
     elif cluster_size == HexgridCluster.SEVEN:
-        return np.array([(0, 0), (0, -1), (1, -1), (-1, -1), (-1, 0), (0, 1), (1, 0)])
+        return [(0, 0, 0)] + hex_neighbours(0, 0, 0)
     elif cluster_size == HexgridCluster.NINETEEN:
-        cls = [(0, 0)]
-        for cell_x in range(-2, 3):
-            for cell_y in range(-2, 3):
-                if abs(cell_x) + abs(cell_y) > 3 or (cell_y == 2 and abs(cell_x) == 1) or (cell_x == 0 and cell_y == 0):
-                    continue
-                cls.append((cell_x, cell_y))
-        return np.array(cls)
+        return list(hex_disc(0, 0, 0, 2))
     else:
         raise ValueError(f"Expected a value from {HexgridCluster}")
 
@@ -188,45 +131,148 @@ def test_hexgrid_cells():
     cs1 = hexgrid_cells(7)
     cs2 = hexgrid_cells(HexgridCluster.SEVEN)
     assert np.all(cs1 == cs2), "Should take ints and enum"
-    I = os.environ.get('INTERACTIVE')
-    if I or True:
+
+    for cls in HexgridCluster:
+        assert len(hexgrid_cells(cls)) == int(cls)
+
+    if os.environ.get('INTERACTIVE'):
         import matplotlib.pyplot as plt
-        # noinspection PyTypeChecker
-        cs = hexgrid_cells(3)
-        plt.figure()
-        for c in cs:
-            print(c)
-            arr = hexgrid_polygon(*c, r=1, closed=True)
-            plt.plot(arr[:, 0], arr[:, 1])
-        plt.title("Three cells in a triangle pattern")
-        # noinspection PyTypeChecker
-        cs = hexgrid_cells(9)
-        plt.figure()
-        for i, c in enumerate(cs):
-            print(c)
-            arr = hexgrid_polygon(*c, r=1, closed=True)
-            plt.plot(arr[:, 0], arr[:, 1])
-            x, y, ang = hexgrid(*c, 1)
-            plt.text(x, y, f"#{i} f{i % 3}\n {c}")
-            plot_cell_sectors(plt.gca(), x, y, 0.3, ang)
-        plt.title("9 cells as 3 adjacent triangles")
+        for cls in HexgridCluster:
+            cs = hexgrid_cells(cls)
+            plt.figure()
+            for c in cs:
+                print(c)
+                arr = hexgrid_polygon(c, r=1, closed=True)
+                plt.plot(arr[:, 0], arr[:, 1])
+                x, y, _ = hexgrid(c, r=1)
+                plt.text(x - 1 / 3, y - 1 / 3, f"{c}")
+            plt.title(f"{cls} cells")
+
         plt.show()
         assert ask_user("Did the plot look OK? Make sure that no parts of circles go outside of the grid.")
 
 
-def hexgrid_box(size=5):
-    if size % 2 == 0:
-        warn('Box hexgrid produces best results when size is odd')
-    r = range(int(-(size // 2)), int((size + 1) // 2))
-    return list(itertools.product(r, r))
+def hexgrid_in_box(box_x:float, box_y:float, r:float)->List[HEX]:
+    """
+    Fill a box of given size with hexgrid layout.
+    :param box_x: box size in meters, x
+    :param box_y:box size in meters, x
+    :param r: cell radius, meters
+    :return: list of hex coordinates
+    """
+    return list(hex_rect(0, 0, 0, int(box_x / r), int(box_y / r)))
+
+
+def filter_neighbors(h0: HEX, all_hexes: Iterable[HEX]):
+    """ Return indices of neighbors for a given hex (given full list in all_hexes)"""
+    return [i for i, h in enumerate(all_hexes) if hexgrid_distance(h, h0) == 1]
+
+
+def hexgrid_freq_reuse(grid_cells: Iterable[HEX], num_channels: int = 3, reuse_dist: int = 1):
+    # TODO need a function to enforce reuse pattern onto a hexgrid layout
+    grid_cells = tuple(tuple(gs) for gs in grid_cells)
+    freq_alloc = np.full(len(grid_cells), -1)
+    all_freqs = set(range(num_channels))
+    to_allocate_cells = set(range(len(grid_cells)))
+
+    # initiate process by manually assigning cell 0
+    to_allocate_cells.remove(0)
+    freq_alloc[0] = 0
+    boundary_set = filter_neighbors(grid_cells[0], grid_cells)
+    while boundary_set:
+        i = boundary_set.pop(0)
+        to_allocate_cells.remove(i)
+        print(f"{i=} {to_allocate_cells=}, {boundary_set=}")
+
+        busy_freqs = set()
+        for j, other in enumerate(grid_cells):
+            if i == j:
+                continue
+            d = hexgrid_distance(grid_cells[i], other)
+            if d > reuse_dist:
+                continue
+            f = freq_alloc[j]
+            if f < 0:
+                continue
+            busy_freqs.add(f)
+        remaining_freqs = all_freqs - busy_freqs
+        if not remaining_freqs:
+            print("Can not find allocation")
+            freq_alloc[i] = 50
+            continue
+            # raise RuntimeError("Can not find allocation")
+        freq_alloc[i] = min(remaining_freqs)
+        new_neighbors = set(filter_neighbors(grid_cells[i], grid_cells))
+        new_neighbors = new_neighbors.intersection(to_allocate_cells)
+        new_neighbors.difference_update(set(boundary_set))
+        boundary_set.extend(new_neighbors)
+
+    return freq_alloc
+
+
+def test_hexgrid_in_box():
+    import matplotlib.colors
+    r = 70
+    cs2 = hexgrid_in_box(3 * r, 7 * r, r)
+    channels = list(matplotlib.colors.TABLEAU_COLORS.keys())
+    freq_alloc3 = hexgrid_freq_reuse(cs2, num_channels=3, reuse_dist=1)
+    freq_alloc7 = hexgrid_freq_reuse(cs2, num_channels=7, reuse_dist=2)
+    assert len(cs2) == len(freq_alloc3)
+    assert len(cs2) == len(freq_alloc7)
+    if os.environ.get('INTERACTIVE'):
+        import matplotlib.pyplot as plt
+        plt.figure()
+        for i, c in enumerate(cs2):
+            freq = freq_alloc3[i]
+            arr = hexgrid_polygon(c, r=r, closed=False)
+            plt.fill(arr[:, 0], arr[:, 1], color=channels[freq])
+            x, y, _ = hexgrid(c, r)
+            plt.text(x - r / 3, y - r / 3, f"#{i} freq{freq} \n {c}")
+
+        plt.title("Box of 200x300m with 50m cells, 3 channels")
+
+        plt.figure()
+        for i, c in enumerate(cs2):
+            freq = freq_alloc7[i]
+            arr = hexgrid_polygon(c, r=r, closed=False)
+            plt.fill(arr[:, 0], arr[:, 1], color=channels[freq])
+            x, y, _ = hexgrid(c, r)
+            plt.text(x - r / 3, y - r / 3, f"#{i} freq{freq} \n {c}")
+
+        plt.title("Box of 200x300m with 50m cells, 7 channels")
+        plt.show()
+        assert ask_user("Did the plot look OK? Make sure that cell reuse pattern was correct")
+
+
+def test_freq_reuse():
+    import matplotlib.colors
+    cells = hexgrid_cells(HexgridCluster.NINE)
+    channels = list(matplotlib.colors.TABLEAU_COLORS.keys())
+    freq_alloc3 = hexgrid_freq_reuse(cells, num_channels=3, reuse_dist=1)
+
+    assert len(cells) == len(freq_alloc3)
+    if os.environ.get('INTERACTIVE'):
+        import matplotlib.pyplot as plt
+        plt.figure()
+        for i, c in enumerate(cells):
+            freq = freq_alloc3[i]
+            arr = hexgrid_polygon(c, r=1, closed=False)
+            plt.fill(arr[:, 0], arr[:, 1], color=channels[freq])
+            x, y, _ = hexgrid(c, 1)
+            plt.text(x - 1 / 3, y - 1 / 3, f"#{i} freq{freq} \n {c}")
+
+        plt.title("Nine cells, 3 channels, should look sane")
+
+        plt.show()
+        assert ask_user("Did the plot look OK? Make sure that cell reuse pattern was correct")
 
 
 def test_pos_around_hex():
     pos = np.array(list(pos_around_hex(0, 0, 0.0, 5, num_points=50000)))
     print(pos.shape)
     assert pos.shape
-    I = os.environ.get('INTERACTIVE')
-    if not I:
+
+    if not os.environ.get('INTERACTIVE'):
         return
     import matplotlib.pyplot as plt
 
