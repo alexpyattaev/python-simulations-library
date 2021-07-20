@@ -197,10 +197,10 @@ def hexgrid_freq_reuse(grid_cells: Iterable[HEX], num_channels: int = 3, reuse_d
             busy_freqs.add(f)
         remaining_freqs = all_freqs - busy_freqs
         if not remaining_freqs:
-            print("Can not find allocation")
-            freq_alloc[i] = 50
-            continue
-            # raise RuntimeError("Can not find allocation")
+            #print("Can not find allocation")
+            #freq_alloc[i] = 50
+            #continue
+            raise RuntimeError("Can not find allocation")
         freq_alloc[i] = min(remaining_freqs)
         new_neighbors = set(filter_neighbors(grid_cells[i], grid_cells))
         new_neighbors = new_neighbors.intersection(to_allocate_cells)
