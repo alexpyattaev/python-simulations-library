@@ -311,7 +311,7 @@ def quaternion_from_scalar_and_vector(scalar: double = 0.0, vector: np.ndarray =
     return q
 
 
-@jit_hardcore
+# @jit_hardcore
 def quaternion_between_vectors(v1: np.ndarray, v2: np.ndarray) -> quaternion:
     """
     Construct rotation quaternion to rotate direction given by v1 towards v2
