@@ -114,6 +114,7 @@ class _MetaChoice(type):
         choices = list(item)
         if isinstance(item, EnumMeta):
             extra_help = "; ".join(f"{f.name}: {f.value}" for f in item)
+            # TODO: support IntEnum better maybe?
             typ = item
         else:
             typ = type(item[0])

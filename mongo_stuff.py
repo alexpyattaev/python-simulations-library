@@ -142,6 +142,13 @@ class Cached_Data_Descriptor:
     tick: int = 0
 
 
+fields_breakdown = {"INTERFACE":
+                        {},
+                    "COMPUTE":
+                        {},
+                    "COMPUTE_DEMAND":
+                        {}}
+
 def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
                        fields_interface: Dict[str, str] = None,
@@ -202,7 +209,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
         RELOAD_RESULTS = reload_results
 
     if RELOAD_RESULTS:
-        junk.delete_many({'TAG':tag})
+        junk.delete_many({'TAG': tag})
 
         print('Grouping within MC trials')
         MC_groups = collection.aggregate([{"$match": {"link": exp['_id']}},
