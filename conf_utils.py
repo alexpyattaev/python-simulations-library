@@ -5,12 +5,14 @@ import datetime
 import itertools
 from functools import reduce
 from operator import mul
-from typing import Iterable
+from typing import Iterable, List
 
 from pymongo.collection import Collection
 
 __encoding__ = "utf-8"
 __author__ = 'Alex Pyattaev'
+
+from lib.mongo_stuff import recursive_clean
 
 
 class config_container(object):
@@ -62,8 +64,10 @@ class Experiment(object):
         self.db_id = None
         self.storage = storage
         unwrap_inner(self.params)
+
         if isinstance(storage, Collection):
-            document = {"type": "EXPERIMENT", "tag": self.tag, "time": datetime.datetime.now()}
+            document = {"type": "EXPERIMENT", "tag": self.tag, "time": datetime.datetime.now(),
+                        "time_completed": None}
 
             res = storage.insert_one(document)
             self.db_id = res.inserted_id
@@ -72,6 +76,16 @@ class Experiment(object):
                 raise ValueError(f'Storage file must be a template with {{idx}} field, found {storage}')
         else:
             raise TypeError('Storage must be a database collection or a filename prefix')
+
+    def mark_done(self, return_codes: List[int]) -> None:
+        self.storage.update_one({'_id': self.db_id}, {'$set': {'time_completed': datetime.datetime.now(),
+                                                               'return_codes': return_codes}})
+
+    def cleanup(self) -> None:
+        """
+        Clean all junk possibly linked to this experiment. Useful if you want to abort.
+        """
+        recursive_clean(self.storage, {'_id': self.db_id})
 
     def __iter__(self):
         """

@@ -1,14 +1,18 @@
+import hashlib
+import json
 import os
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
 from itertools import chain
-from typing import List, Tuple, Dict, NamedTuple
+from typing import List, Tuple, Dict, NamedTuple, Optional
 
 import matplotlib.cm as cm
 import numpy as np
+from bson import ObjectId
 from pymongo import DESCENDING, MongoClient
 from pymongo.collection import Collection, ReturnDocument
 from pymongo.database import Database
+from tqdm import tqdm
 
 from lib.stuff import color_print_warning, color_print_okblue
 
@@ -70,7 +74,14 @@ def ensure_indices(collection: Collection, drop_current=False, index_base_name="
             collection.create_index(keys, name=name, unique=False, sparse=True)
 
 
-def experiment_label(coll: Collection, exp, new_label: str = None):
+def experiment_label(coll: Collection, exp: dict, new_label: str = None) -> Optional[str]:
+    """
+    Set or remove experiment label
+    :param coll: collection to use
+    :param exp: experiment document
+    :param new_label: label to set, empty string will erase label. None returns the existing label
+    :return: updated experiment label
+    """
     if new_label is not None:
         if new_label != "":
             coll.update_one(filter={'_id': exp['_id']},
@@ -134,24 +145,47 @@ def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
     return style_fn
 
 
+def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None) -> dict:
+    """
+    Find latest experiment with given tag in given collection
+    :param collection: collection to search
+    :param tag: experiment tag
+    :param only_completed: only return experiments which successfully finished (default=True)
+    :param label: only return experiments with given label (see experiment_label)
+    :return: experiment object
+    """
+
+    sk = {"type": "EXPERIMENT", 'tag': tag}
+    if only_completed:
+        sk['time_completed'] = {"$ne": None}
+    if label:
+        sk['label'] = label
+    exp = collection.find().sort("time", DESCENDING)[0]
+    print("Experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
+    return exp
+
+
 @dataclass
 class Cached_Data_Descriptor:
-    TAG: str = "STUFF"
+    TAG: str
+    exp_ID: ObjectId
+    fields_hash: str
     num_seeds: int = 0
     sim_time: int = 0
     tick: int = 0
 
 
-fields_breakdown = {"INTERFACE":
-                        {},
-                    "COMPUTE":
-                        {},
-                    "COMPUTE_DEMAND":
-                        {}}
+def dump_trials(collection: Collection, exp: dict)->int:
+    trials = collection.find({"link": exp['_id']}).sort("params", DESCENDING)
+    total_trials = 0
+    for t in trials:
+        total_trials += 1
+        print("{params}:{seed}".format(**t))
+    return total_trials
 
 def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
-                       fields_interface: Dict[str, str] = None,
+                       fields_components: List[Dict[str, Dict[str, str]]] = None,
                        node_breakdown_param: str = 'subtype',
                        tag: str = 'STUFF', ) -> Cached_Data_Descriptor:
     """
@@ -169,8 +203,14 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                             'data_bytes_generated': "generated",
                             'data_bytes_dropped': "dropped",
                             'pos': 'pos'}
-    :param fields_interface: Which keys to extract from interfaces and how to save them, e.g.
-             fields_interface = {"tx_power":"tx_power", "csma_rts_attempts": "rts_attempts"}
+    :param fields_components: Which keys to extract from e.g. interfaces and how to save them, e.g.
+             fields_components = [{"filter": {"type": "INTERFACE", "subtype": "wifi"},
+                     "project": {"tx_power": "tx_power", "csma_rts_attempts": "rts_attempts"}},
+                    {"filter": {"type": "INTERFACE", "subtype": "lte"},
+                     "project": {"tx_power": "tx_power", "cell_id": "cell_id"}},
+                    {"filter": {"type": "COMPUTE"},
+                     "project": {"jobs_handled": "jobs_handled"}
+                     }]
     :param node_breakdown_param: additional node category breakdown field (like, is it a BS or client)
     :param tag: tag under which the data is dumped in the junk collection
     :returns a data descriptor which contains information about the data inserted into
@@ -181,25 +221,26 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     """
 
     def check_keys(a, b):
-        int = set(a.keys()).intersection(b.keys())
-        if int:
+        isect = set(a.keys()).intersection(b.keys())
+        if isect:
             print("Can not use same keys for record ID and field values, please rename keys:")
-            print(int)
+            print(isect)
             raise KeyError()
 
-    cache_descr = Cached_Data_Descriptor()
-    cache_descr.TAG = tag
+    md5 = hashlib.md5()
+    all_params = json.dumps(fields_node, sort_keys=True) + json.dumps(fields_components, sort_keys=True)
+    all_params += node_breakdown_param + tag
+    md5.update(all_params.encode("utf-8"))
+    cache_descr = Cached_Data_Descriptor(TAG=tag, exp_ID=exp['_id'], fields_hash=md5.hexdigest())
     ensure_indices(collection)
 
-    trials = collection.find({"link": exp['_id']}).sort("params", DESCENDING)
-    total_trials = 0
-    for t in trials:
-        total_trials += 1
-        print("{params}:{seed}".format(**t))
-
-    if junk.find_one({"exp_ID": exp['_id']}) is None:
+    if junk.find_one({"exp_ID": cache_descr.exp_ID, 'fields_hash': cache_descr.fields_hash}) is None:
         if reload_results is True or reload_results == "AUTO":
             RELOAD_RESULTS = True
+            if reload_results == "AUTO":
+                print("Found mismatch in cached data, recalculating...")
+            else:
+                print("Forced reloading of cached data...")
         else:
             RELOAD_RESULTS = False
             print("Latest experiment does not match cached values!!! Maybe reload?")
@@ -208,70 +249,87 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     else:
         RELOAD_RESULTS = reload_results
 
-    if RELOAD_RESULTS:
-        junk.delete_many({'TAG': tag})
+    if not RELOAD_RESULTS:
+        print("Loading cached values")
+        st = junk.find_one({"TAG": tag, "exp_ID": cache_descr.exp_ID})
+        st = {k: st[k] for k in asdict(cache_descr).keys()}
+        cache_descr = replace(cache_descr, **st)
+        return cache_descr
 
-        print('Grouping within MC trials')
-        MC_groups = collection.aggregate([{"$match": {"link": exp['_id']}},
-                                          {"$group": {"_id": "$params", "items": {"$push": "$_id"}}}], batchSize=10)
+    junk.delete_many({'TAG': tag})
 
-        print('Beginning parse')
+    print('Grouping within MC trials')
+    MC_groups = list(collection.aggregate([{"$match": {"link": exp['_id']}},
+                                      {"$group": {"_id": "$params", "items": {"$push": "$_id"}}}], batchSize=10))
 
-        for tnum, group_data in enumerate(MC_groups):
-            # extract params for convenience
-            print(f"Parsing MC group {tnum}/{total_trials}: {group_data['_id']}")
-            params = group_data['_id']
-            if cache_descr.num_seeds == 0:
-                cache_descr.num_seeds = len(group_data['items'])
+    print('Beginning parse')
 
-            # for each trial in MC group
-            for trial_id in group_data['items']:
-                # get the trial itself
-                trial = collection.find_one({"_id": trial_id})
-                print(f"Parsing trial {trial}")
-                # Get value from the config
-                config = collection.find_one({"type": "CONFIG", "link": trial_id}, {'SLS.TICK': True})
-                if cache_descr.tick == 0:
-                    cache_descr.tick = config['SLS']['TICK']
+    for group_data in tqdm(MC_groups, desc="Parameter groups", colour="red", unit="group"):
+        # print(f"Parsing MC group {group_data['_id']}")
+        params = group_data['_id']
+        if cache_descr.num_seeds == 0:
+            cache_descr.num_seeds = len(group_data['items'])
 
-                gl_stats = collection.find_one({"type": "SYS", "link": trial_id}, {'sim_time': True})
-                if cache_descr.sim_time == 0:
-                    cache_descr.sim_time = gl_stats['sim_time'] * cache_descr.tick
+        # for each trial in MC group
+        for trial_id in tqdm(group_data['items'], desc="Trials", colour="green", unit="trial"):
+            # get the trial itself
+            trial = collection.find_one({"_id": trial_id})
+            # print(f"Parsing trial {trial}")
+            # Get value from the config
+            config = collection.find_one({"type": "CONFIG", "link": trial_id}, {'SLS.TICK': True})
+            if cache_descr.tick == 0:
+                cache_descr.tick = config['SLS']['TICK']
 
-                node_types = collection.distinct(node_breakdown_param, {"type": "NODE", "link": trial_id})
-                for node_type in node_types:
-                    nodes = list(collection.find({"type": "NODE", "link": trial_id, node_breakdown_param: node_type},
-                                                 list(fields_node.keys())))
-                    # Make record to hold values related to this node type in this trial
+            gl_stats = collection.find_one({"type": "SYS", "link": trial_id}, {'sim_time': True})
+            if cache_descr.sim_time == 0:
+                cache_descr.sim_time = gl_stats['sim_time'] * cache_descr.tick
 
-                    d = {**{node_breakdown_param: node_type}, **params}
-                    rec_id = junk.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
-                                                      return_document=ReturnDocument.AFTER)["_id"]
-                    # add data from nodes
-                    for node in nodes:
-                        updates = {v: node[k] for k, v in fields_node.items()}
-                        check_keys(updates, d)
+            node_types = collection.distinct(node_breakdown_param, {"type": "NODE", "link": trial_id})
+            for node_type in node_types:
+                nodes = list(collection.find({"type": "NODE", "link": trial_id, node_breakdown_param: node_type},
+                                             list(fields_node.keys())))
+                # Make record to hold values related to this node type in this trial
 
-                        junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
-                        if fields_interface is None:
-                            continue
-                        ifaces = list(collection.find({"type": "INTERFACE", "link": node['_id']},
-                                                      list(fields_interface.keys())))
-                        assert len(ifaces) == 1
-                        for iface in ifaces:
-                            updates = {v: iface[k] for k, v in fields_interface.items()}
+                d = {**{node_breakdown_param: node_type}, **params}
+
+                rec_id = junk.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
+                                                  return_document=ReturnDocument.AFTER)["_id"]
+                # add data from nodes
+                for node in tqdm(nodes, desc=f"Nodes[{node_type}]", colour="blue", unit="node", miniters=10):
+                    updates = {v: node[k] for k, v in fields_node.items()}
+                    check_keys(updates, d)
+
+                    junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                    if fields_components is None:
+                        continue
+                    assert isinstance(fields_components, list), "Expecting list for fields_components"
+                    for comp_desc in fields_components:
+                        comp_filter, comp_projection = comp_desc['filter'], comp_desc['project']
+                        comp_filter["link"] = node['_id']
+                        components = list(collection.find(comp_filter, list(comp_projection.keys())))
+                        # print(comp_desc)
+                        if len(components) > 1:
+                            autonum = comp_desc['auto_enumerate']
+                            if not autonum:
+                                msg = f"""Component filter {comp_filter} produced multiple results for 
+                                      node {node['_id']} this is not currently supported, and 
+                                      thus you should change the filter"""
+                                raise ValueError(msg)
+                        else:
+                            autonum = False
+
+                        for i, c in enumerate(components):
+                            # print(i, c)
+                            suff = f"_{i}" if autonum else ""
+                            try:
+                                updates = {v + suff: c[k] for k, v in comp_projection.items()}
+                            except KeyError as e:
+                                raise KeyError(f"Field '{e}' not found in component obtained by {comp_filter}")
                             check_keys(d, updates)
                             junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
 
-        print(f"Inserting global parameters {asdict(cache_descr)}")
-        junk.insert_one(asdict(cache_descr))
-        junk.insert_one({"exp_ID": exp['_id']})
-    else:
-        print("Loading cached values")
-        st = junk.find_one({"TAG": tag})
-        st = {k: st[k] for k in asdict(cache_descr).keys()}
-        cache_descr = replace(cache_descr, **st)
-
+    print(f"Inserting global parameters {asdict(cache_descr)}")
+    junk.insert_one(asdict(cache_descr))
     return cache_descr
 
 
