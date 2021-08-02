@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import time
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
 from itertools import chain
@@ -14,6 +15,7 @@ from pymongo.collection import Collection, ReturnDocument
 from pymongo.database import Database
 from tqdm import tqdm
 
+from lib.code_perf_timer import Context_Timer
 from lib.stuff import color_print_warning, color_print_okblue
 
 
@@ -175,13 +177,14 @@ class Cached_Data_Descriptor:
     tick: int = 0
 
 
-def dump_trials(collection: Collection, exp: dict)->int:
+def dump_trials(collection: Collection, exp: dict) -> int:
     trials = collection.find({"link": exp['_id']}).sort("params", DESCENDING)
     total_trials = 0
     for t in trials:
         total_trials += 1
         print("{params}:{seed}".format(**t))
     return total_trials
+
 
 def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
@@ -220,6 +223,10 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     can be made either directly or with organize_results() function.
     """
 
+    find_timer = Context_Timer()
+    upsert_timer = Context_Timer()
+    push_timer = Context_Timer()
+
     def check_keys(a, b):
         isect = set(a.keys()).intersection(b.keys())
         if isect:
@@ -256,11 +263,12 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
         cache_descr = replace(cache_descr, **st)
         return cache_descr
 
-    junk.delete_many({'TAG': tag})
+    # junk.delete_many({'TAG': tag})
+    junk.delete_many({})
 
     print('Grouping within MC trials')
     MC_groups = list(collection.aggregate([{"$match": {"link": exp['_id']}},
-                                      {"$group": {"_id": "$params", "items": {"$push": "$_id"}}}], batchSize=10))
+                                           {"$group": {"_id": "$params", "items": {"$push": "$_id"}}}], batchSize=10))
 
     print('Beginning parse')
 
@@ -272,41 +280,44 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
 
         # for each trial in MC group
         for trial_id in tqdm(group_data['items'], desc="Trials", colour="green", unit="trial"):
-            # get the trial itself
-            trial = collection.find_one({"_id": trial_id})
-            # print(f"Parsing trial {trial}")
             # Get value from the config
-            config = collection.find_one({"type": "CONFIG", "link": trial_id}, {'SLS.TICK': True})
+
             if cache_descr.tick == 0:
+                with find_timer:
+                    config = collection.find_one({"type": "CONFIG", "link": trial_id}, {'SLS.TICK': True})
                 cache_descr.tick = config['SLS']['TICK']
 
-            gl_stats = collection.find_one({"type": "SYS", "link": trial_id}, {'sim_time': True})
             if cache_descr.sim_time == 0:
+                with find_timer:
+                    gl_stats = collection.find_one({"type": "SYS", "link": trial_id}, {'sim_time': True})
                 cache_descr.sim_time = gl_stats['sim_time'] * cache_descr.tick
 
             node_types = collection.distinct(node_breakdown_param, {"type": "NODE", "link": trial_id})
             for node_type in node_types:
-                nodes = list(collection.find({"type": "NODE", "link": trial_id, node_breakdown_param: node_type},
-                                             list(fields_node.keys())))
+                with find_timer:
+                    nodes = list(collection.find({"type": "NODE", "link": trial_id, node_breakdown_param: node_type},
+                                                 list(fields_node.keys())))
                 # Make record to hold values related to this node type in this trial
 
                 d = {**{node_breakdown_param: node_type}, **params}
 
-                rec_id = junk.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
-                                                  return_document=ReturnDocument.AFTER)["_id"]
+                with upsert_timer:
+                    rec_id = junk.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
+                                                      return_document=ReturnDocument.AFTER)["_id"]
                 # add data from nodes
                 for node in tqdm(nodes, desc=f"Nodes[{node_type}]", colour="blue", unit="node", miniters=10):
                     updates = {v: node[k] for k, v in fields_node.items()}
                     check_keys(updates, d)
-
-                    junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                    with push_timer:
+                        junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
                     if fields_components is None:
                         continue
                     assert isinstance(fields_components, list), "Expecting list for fields_components"
                     for comp_desc in fields_components:
                         comp_filter, comp_projection = comp_desc['filter'], comp_desc['project']
                         comp_filter["link"] = node['_id']
-                        components = list(collection.find(comp_filter, list(comp_projection.keys())))
+                        with find_timer:
+                            components = list(collection.find(comp_filter, list(comp_projection.keys())))
                         # print(comp_desc)
                         if len(components) > 1:
                             autonum = comp_desc['auto_enumerate']
@@ -326,10 +337,13 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                             except KeyError as e:
                                 raise KeyError(f"Field '{e}' not found in component obtained by {comp_filter}")
                             check_keys(d, updates)
-                            junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                            with push_timer:
+                                junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
 
     print(f"Inserting global parameters {asdict(cache_descr)}")
     junk.insert_one(asdict(cache_descr))
+    print(f"{find_timer.seconds=}, {upsert_timer.seconds=}, {push_timer.seconds=}")
+
     return cache_descr
 
 

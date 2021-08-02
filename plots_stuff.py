@@ -105,7 +105,7 @@ def make_colors(keys: list, cmap=None) -> Callable[[object], list]:
     if cmap is None:
         if len(keys) < 5:
             # noinspection PyUnresolvedReferences
-            cmap = cm.brg
+            cmap = cm.jet
         else:
             # noinspection PyUnresolvedReferences
             cmap = cm.viridis
