@@ -172,6 +172,7 @@ class Cached_Data_Descriptor:
     TAG: str
     exp_ID: ObjectId
     fields_hash: str
+    all_fields: str = ""
     num_seeds: int = 0
     sim_time: int = 0
     tick: int = 0
@@ -237,10 +238,14 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     md5 = hashlib.md5()
     all_params = json.dumps(fields_node, sort_keys=True) + json.dumps(fields_components, sort_keys=True)
     all_params += node_breakdown_param + tag
-    md5.update(all_params.encode("utf-8"))
-    cache_descr = Cached_Data_Descriptor(TAG=tag, exp_ID=exp['_id'], fields_hash=md5.hexdigest())
+    # print("="*40)
+    # print(all_params)
+    md5.update(all_params.encode("ASCII"))
+    cache_descr = Cached_Data_Descriptor(TAG=tag, exp_ID=exp['_id'], all_fields=all_params, fields_hash=md5.hexdigest())
     ensure_indices(collection)
-
+    # print(cache_descr.fields_hash)
+    # print("=" * 40)
+    # exit()
     if junk.find_one({"exp_ID": cache_descr.exp_ID, 'fields_hash': cache_descr.fields_hash}) is None:
         if reload_results is True or reload_results == "AUTO":
             RELOAD_RESULTS = True
@@ -259,7 +264,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     if not RELOAD_RESULTS:
         print("Loading cached values")
         st = junk.find_one({"TAG": tag, "exp_ID": cache_descr.exp_ID})
-        st = {k: st[k] for k in asdict(cache_descr).keys()}
+        st = {k: st.get(k, None) for k in asdict(cache_descr).keys()}
         cache_descr = replace(cache_descr, **st)
         return cache_descr
 

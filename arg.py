@@ -1,13 +1,29 @@
 import argparse
 import dataclasses
-from enum import EnumMeta
+from enum import EnumMeta, IntEnum, Enum
 from io import IOBase
 from typing import Callable, Union, Dict, TypeVar, Type
 import inspect
+import pytest
 
 __all__ = ('Arg', 'Int', 'Float', 'Str', 'Choice', 'File', 'Bool', 'List', 'parse_to',
            'Arg_Container', 'Force_Annotation')
 
+
+class repr_override:
+    """ Provides enum-specific repr override for nice looks"""
+
+    def __init__(self, v):
+        self.v = v
+
+    def __repr__(self):
+        return str(self.v.name)
+
+    def __str__(self):
+        return str(self.v.name)
+
+    def __eq__(self, other):
+        return other == self.v
 
 @dataclasses.dataclass
 class Force_Annotation:
@@ -43,7 +59,10 @@ class Arg:
         Called when default value is known. Internal use.
         :param default:
         """
-        self.kwargs['default'] = default
+        if isinstance(default, Enum):
+            self.kwargs['default'] = repr_override(default)
+        else:
+            self.kwargs['default'] = default
 
 
 class Int(Arg):
@@ -108,34 +127,55 @@ class List(Arg, metaclass=_MetaList):
 
 
 class _MetaChoice(type):
-    """Metaclass for Choice"""
+    """
+    Implementation details (metaclass) for Choice class.
+    """
 
     def __getitem__(self, item):
-        choices = list(item)
+        """Get a variant of Choice for a given type"""
         if isinstance(item, EnumMeta):
+            choices = [repr_override(f) for f in item]
             extra_help = "; ".join(f"{f.name}: {f.value}" for f in item)
-            # TODO: support IntEnum better maybe?
-            typ = item
+            if issubclass(item, IntEnum):
+                def typ(x):
+                    try:
+                        return getattr(item, x)
+                    except AttributeError:
+                        try:
+                            return item(int(x))
+                        except ValueError:
+                            pass
+                    raise argparse.ArgumentTypeError(f"invalid {item.__name__} value: {x}")
+            else:
+                def typ(x):
+                    try:
+                        return getattr(item, x)
+                    except AttributeError:
+                        raise argparse.ArgumentTypeError(f"invalid {item.__name__} value: {x}")
         else:
+            choices = list(item)
             typ = type(item[0])
             extra_help = None
         return self(choices=choices, typ=typ, extra_help=extra_help)
 
 
 class Choice(Arg, metaclass=_MetaChoice):
-    """Choice out of iterable or Enum"""
+    """Choice out of iterable or Enum subclass.
+
+    If enum is given as argument, the names of the fields will be used, and values will be returned.
+    """
 
     def __init__(self, choices, extra_help=None, **kwargs):
         self.extra_help = extra_help
         Arg.__init__(self, choices=choices, **kwargs)
 
     def __call__(self, **kwargs):
+        assert 'choices' not in kwargs
         if self.extra_help is not None:
             if 'help' in kwargs:
-                kwargs['help'] += '[' + self.extra_help + ']'
+                kwargs['help'] += ' [' + self.extra_help + ']'
             else:
-                kwargs['help'] += '[' + self.extra_help + ']'
-        assert 'choices' not in kwargs
+                kwargs['help'] = '[' + self.extra_help + ']'
 
         self.kwargs.update(kwargs)
 
@@ -196,7 +236,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
             value = value_or_class
             if default is not None:
                 value.set_default(default)
-        if verbose:
+        if verbose or True:
             print("add_argument", mangle_name(name, value.pos), value.kwargs)
         parser.add_argument(mangle_name(name, value.pos), **value.kwargs)
 
@@ -206,6 +246,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
 
 @dataclasses.dataclass
 class Arg_Container(Force_Annotation):
+    """Argument Container class"""
     def asdict(self) -> Dict[str, object]:
         result = {}
         for f in dataclasses.fields(self):
@@ -214,3 +255,55 @@ class Arg_Container(Force_Annotation):
                 value = value.name
             result[f.name] = value
         return result
+
+
+@pytest.fixture
+def arg_definitions():
+    class str_enum(Enum):
+        """Enum of strings of things"""
+        A = "All the things"
+        B = "Best of things"
+
+    class int_enum(IntEnum):
+        ONE = 1
+        TWO = 2
+
+    @dataclasses.dataclass
+    class Args(Arg_Container):
+        """Example of description for your application"""
+        req_str: Str(help="required str field") = "boo"
+
+        opt_str: Str(help="str field") = "bla"
+        bare_str: str = "aaa"
+
+        int_field: Int(help='Int field') = 120
+        bare_int: int = 150
+
+        float_field: Float(help='Float field') = 10.0
+        bare_float: float = 15.0
+
+        str_enum_field: Choice[str_enum](help="choice from string enum") = str_enum.A
+        int_enum_field: Choice[int_enum](help="choice from int enum") = int_enum.TWO
+
+        list_choice: Choice[[1, 4, 7]](help="choice from iterable") = 0
+    return Args
+
+
+def test_parse(arg_definitions):
+    opt = "--req_str=bla --opt_str=foo --bare_str=ads --int_field=10 --bare_int=20 --float_field=1.2 \
+    --bare_float=35.0  --str_enum_field=A --int_enum_field=2 --list_choice=7".split()
+    args = parse_to(arg_definitions, args=opt)
+    print(args)
+
+
+def test_fail(arg_definitions):
+    opt = "--req_str=asd --opt_str=foo --bare_str=ads --int_field=10 --bare_int=20 --float_field=1.2 \
+    --bare_float=35.0  --str_enum_field=C --int_enum_field=2 --list_choice=7".split()
+    with pytest.raises(SystemExit):
+        parse_to(arg_definitions, args=opt)
+
+
+def test_help(arg_definitions):
+    with pytest.raises(SystemExit):
+        parse_to(arg_definitions, args=["--help"])
+
