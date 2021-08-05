@@ -6,14 +6,18 @@ from typing import Union, Callable, Iterable, Dict
 
 import numpy as np
 import pytest
-from scipy.constants import constants
+
 
 from lib.numba_opt import jit_hardcore
 
 # epsilon for testing whether a number is close to zero
 EPS: float = np.finfo(float).eps * 4.0
 
-speed_of_light = constants.speed_of_light / 1.0003  # meters/sec in air!!!
+try:
+    from scipy.constants import constants
+    speed_of_light = constants.speed_of_light / 1.0003  # meters/sec in air!!!
+except ImportError:
+    speed_of_light = 299792458.0 / 1.0003
 
 
 def pprint(*args, **kwargs):

@@ -95,7 +95,7 @@ def euler_from_matrix(matrix: np.ndarray, axes: str = 'sxyz') -> Tuple[float, fl
 
 
 @jit_hardcore
-def euler_matrix(ai: float, aj: float, ak: float, axes: str = 'sxyz') -> np.ndarray:
+def euler_matrix(ai: float = 0.0, aj: float = 0.0, ak: float = 0.0, axes: str = 'sxyz') -> np.ndarray:
     """Return homogeneous rotation matrix from Euler angles and axis sequence.
 
     ai, aj, ak : Euler's roll, pitch and yaw angles

@@ -465,7 +465,6 @@ def scale_from_matrix(matrix: np.ndarray) -> Tuple[float, np.ndarray, np.ndarray
     return factor, origin, direction
 
 
-
 def projection_matrix(point: np.ndarray, normal: np.ndarray, direction: np.ndarray = None,
                       perspective: np.ndarray = None, pseudo: bool = False) -> np.ndarray:
     """Return matrix to project onto plane defined by point and normal.
