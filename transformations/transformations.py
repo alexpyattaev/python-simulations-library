@@ -607,7 +607,7 @@ def projection_from_matrix(matrix, pseudo=False):
 
 
 @jit_hardcore
-def project_by_matrix(v, P):
+def project_by_matrix(P, v):
     """
     Project vector v to plane via projection in P.
 
@@ -629,7 +629,7 @@ def project_by_matrix(v, P):
     array([ 0.4,  0.4, 10. ])
     """
     if v.shape[0] == 3:
-        v2 = np.ones(4)
+        v2 = np.ones(4, dtype=double)
         v2[0:3] = v[:]
     else:
         v2 = v
@@ -856,10 +856,10 @@ def decompose_matrix(matrix: np.ndarray):
     return scale, shear, angles, translate, perspective
 
 
-def print_decomposition(matrix):
+def string_decomposition(matrix):
     names = "scale shear angles translate perspective".split()
     fields = decompose_matrix(matrix)
-    print('; '.join(f"{n}={f}" for n, f in zip(names, fields)))
+    return '; '.join(f"{n}={f}" for n, f in zip(names, fields))
 
 
 def compose_matrix(scale=None, shear=None, angles=None, translate=None,
