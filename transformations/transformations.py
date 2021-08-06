@@ -183,7 +183,7 @@ from lib.transformations.euler_angles import euler_matrix
 from lib.transformations.quaternions import quaternion_to_transform_matrix, quaternion_to_transformation_matrix, \
     random_quaternion, quaternion_from_matrix
 from lib.transformations.transform_tools import is_same_transform, concatenate_matrices
-from lib.vectors import vector, norm, unit_vector, angle_between_vectors, origin as _origin, xaxis, zaxis
+from lib.vectors import vector, norm, unit_vector, angle_between_vectors, origin as _origin, xaxis, zaxis, origin, yaxis
 
 __docformat__ = 'restructuredtext en'
 
@@ -474,6 +474,12 @@ def projection_matrix(point: np.ndarray, normal: np.ndarray, direction: np.ndarr
     If pseudo is True, perspective projections will preserve relative depth
     such that Perspective = dot(Orthogonal, PseudoPerspective).
 
+    :param point: the point defining center of projection plane
+    :param normal: the normal vector defining projection plane. should be unit vector
+    :param direction: ???
+    :param perspective: if given, is the point of observation, i.e. where eye is
+    :param pseudo: ???
+    :return: projection matrix 4x4
     >>> P = projection_matrix(vector(0, 0, 0), vector(1, 0, 0))
     >>> np.allclose(P[1:, 1:], np.identity(4)[1:, 1:])
     True
@@ -598,6 +604,37 @@ def projection_from_matrix(matrix, pseudo=False):
         if pseudo:
             perspective -= normal
         return point, normal, None, perspective, pseudo
+
+
+@jit_hardcore
+def project_by_matrix(v, P):
+    """
+    Project vector v to plane via projection in P.
+
+    If v is already homogenous saves a bit of compute time by avoiding conversion.
+
+    >>> persp = vector(0.0, 0.0, 20.0)
+    >>> P = projection_matrix(point=vector(0.0, 0.0, 10.0), normal=vector(0.0, 0.0, 1.0), perspective=persp)
+    >>> project_by_matrix(origin, P)
+    array([ 0.,  0., 10.])
+    >>> project_by_matrix(xaxis, P)
+    array([ 0.5,  0. , 10. ])
+    >>> project_by_matrix(yaxis, P)
+    array([ 0. ,  0.5, 10. ])
+    >>> project_by_matrix(zaxis, P)
+    array([ 0.,  0., 10.])
+    >>> project_by_matrix(vector(1,1,5), P)
+    array([ 0.66667,  0.66667, 10.     ])
+    >>> project_by_matrix(vector(1,1,-5), P)
+    array([ 0.4,  0.4, 10. ])
+    """
+    if v.shape[0] == 3:
+        v2 = np.ones(4)
+        v2[0:3] = v[:]
+    else:
+        v2 = v
+    r = np.dot(P, v2)
+    return r[0:3]/r[3]
 
 
 def clip_matrix(left, right, bottom, top, near, far, perspective=False):
@@ -819,6 +856,12 @@ def decompose_matrix(matrix: np.ndarray):
     return scale, shear, angles, translate, perspective
 
 
+def print_decomposition(matrix):
+    names = "scale shear angles translate perspective".split()
+    fields = decompose_matrix(matrix)
+    print('; '.join(f"{n}={f}" for n, f in zip(names, fields)))
+
+
 def compose_matrix(scale=None, shear=None, angles=None, translate=None,
                    perspective=None):
     """Return transformation matrix from sequence of transformations.
@@ -1006,6 +1049,28 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
     M = np.dot(np.linalg.inv(M1), np.dot(M, M0))
     M /= M[ndims, ndims]
     return M
+
+
+@jit_hardcore
+def homogenous(v: np.ndarray):
+    """
+    Converts a vector v into homogenous vector (appends 1, basically)
+    :param v: vector to use (length 3)
+    :return: homogenous version of v (length 4)
+    """
+    new_v = np.ones(4, double)
+    new_v[0:3] = v
+    return new_v
+
+
+@jit_hardcore
+def cartesian(v: np.ndarray):
+    """
+    Converts a homogenous vector v into cartesian vector
+    :param v: vector to use (length 4)
+    :return: homogenous version of v (length 3)
+    """
+    return v[0:3] / v[3]
 
 
 def superimposition_matrix(v0, v1, scale=False, usesvd=True):

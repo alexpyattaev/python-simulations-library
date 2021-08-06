@@ -6,8 +6,6 @@ from typing import Union, Callable, Iterable, Dict
 
 import numpy as np
 import pytest
-
-
 from lib.numba_opt import jit_hardcore
 
 # epsilon for testing whether a number is close to zero
@@ -111,7 +109,6 @@ def sign(x: float) -> int:
         return int(np.copysign(1.0, x))
     else:
         return 0
-
 
 
 @jit_hardcore
@@ -324,7 +321,7 @@ def merge_axes(arr: np.ndarray, mergelist: Iterable[int]):
     return arr
 
 
-def bool_array_to_string(arr: Iterable[bool]) -> str:
+def bool_array_to_string(arr: Iterable[Union[bool, int]]) -> str:
     """
 
     :param arr:
