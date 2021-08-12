@@ -1,6 +1,6 @@
 import os
 import pickle
-from itertools import repeat
+from itertools import repeat, zip_longest
 from typing import List, Union, Callable, Tuple, Iterable, Dict
 
 import matplotlib as mpl
@@ -10,7 +10,7 @@ import matplotlib.ticker
 import mpl_toolkits
 import mpl_toolkits.mplot3d
 import numpy as np
-from matplotlib import cycler
+from matplotlib import cycler, ticker
 from matplotlib.colors import Normalize
 from matplotlib.pyplot import subplots, show
 from scipy.interpolate import interp1d
@@ -233,6 +233,64 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
     # print(area)
     Y2 = Y2 / area
     return X, Y2
+
+
+def nice_cdf_plot(datas, title: str, names: Iterable = tuple(),
+                  markers: Iterable = tuple(), styles: Iterable = tuple(),
+                  colors: Iterable = tuple(), ignore_missed=False,
+                  vertical_threshold_lines=(0.5, 2.0),
+                  legend_outside=8,
+                  xlabel='Distance, m',
+                  ylabel='CDF, percent'):
+    """
+    Makes a nice-looking CDF plot from multiple data sets.
+
+    :param datas:
+    :param title:
+    :param names:
+    :param markers:
+    :param styles:
+    :param colors:
+    :param ignore_missed:
+    :param vertical_threshold_lines:
+    :param xlabel:
+    :param ylabel:
+    :return:
+    """
+    if not isinstance(datas, list):
+        datas = [datas]
+        names = [names]
+
+    f = matplotlib.pyplot.figure(figsize=[16, 10])
+    ax = matplotlib.pyplot.gca()
+    for data, tit, mrk, sty, clr in zip_longest(datas, names, markers, styles, colors):
+        if data is None:
+            raise ValueError(f'data and names length do not match {len(datas)}, {len(names)}')
+
+        if not ignore_missed:
+            data[data > 50] = 0
+        if len(data) == 0:
+            continue
+        X, Y = cdfplot(data, 100)
+        if title is None:
+            tit = ""
+
+        ax.plot(X, Y, color=clr, marker=mrk, linestyle=sty, label=tit)
+    ax.set_xlabel(xlabel)
+    ax.vlines(x=vertical_threshold_lines, ymin=0, ymax=100, label='thresholds', colors='k')
+    if len(datas) <= legend_outside:
+        ax.legend()
+    else:
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    power_scale_axes(ax, axes="x")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
+    ax.grid()
+    matplotlib.pyplot.tight_layout()
+    return f
 
 
 def draw_point_labels(ax: Union[matplotlib.figure.Axes, mpl_toolkits.mplot3d.axes3d.Axes3D],
