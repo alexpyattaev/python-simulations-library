@@ -2,6 +2,7 @@ __author__ = 'Alex Pyattaev'
 import numpy as np
 from scipy.interpolate import griddata
 
+
 def surfplot_heatmap(pos, data, grid_size:float, N_pts:int=100, fill:float=0):
     """
     Prepares interpolated data which is only known at select points given by pos,

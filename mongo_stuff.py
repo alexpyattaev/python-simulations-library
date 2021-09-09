@@ -147,7 +147,7 @@ def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
     return style_fn
 
 
-def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None) -> dict:
+def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None) -> Optional[dict]:
     """
     Find latest experiment with given tag in given collection
     :param collection: collection to search
@@ -159,10 +159,15 @@ def find_last_experiment(collection: Collection, tag: str, only_completed: True,
 
     sk = {"type": "EXPERIMENT", 'tag': tag}
     if only_completed:
-        sk['time_completed'] = {"$ne": None}
+        sk['time_completed'] = {"$exists": True, "$ne":None}
     if label:
         sk['label'] = label
-    exp = collection.find().sort("time", DESCENDING)[0]
+    print(sk)
+    try:
+        exp = collection.find(sk).sort("time", DESCENDING)[0]
+    except IndexError:
+        print(f"Could not find anything for search key {sk}")
+        return None
     print("Experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
     return exp
 
@@ -174,7 +179,7 @@ class Cached_Data_Descriptor:
     fields_hash: str
     all_fields: str = ""
     num_seeds: int = 0
-    sim_time: int = 0
+    sim_time: float = 0
     tick: int = 0
 
 
@@ -366,7 +371,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
     :return: Dict mapping the group_params combinations to (x_vals, y_vals)
     """
 
-    match = {"$match": match_rule}
+    matchkey = {"$match": match_rule}
 
     group1 = {
         "$group": {
@@ -385,7 +390,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
     }
 
     sort2 = {"$sort": {f"_id.{n}": 1 for n in group_params}}
-    pipeline = [match, group1, sort1, group2, sort2]
+    pipeline = [matchkey, group1, sort1, group2, sort2]
 
     if not quiet:
         color_print_okblue("Will run aggregate:[" + ',\n'.join([str(i) for i in pipeline]) + "]")

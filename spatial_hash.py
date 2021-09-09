@@ -1,3 +1,5 @@
+from typing import Iterator
+
 import numpy as np
 
 from debug_log import *
@@ -51,7 +53,7 @@ class Spatial_Hash_Grid(object):
         y = int(y_m / self.cell_size) + self.g_half
         return self.object_grids[object_class][x, y]
 
-    def select_circle(self, x_m: float, y_m: float, R_m: float, object_class: str, coord_mode=False) -> set:
+    def select_circle(self, x_m: float, y_m: float, R_m: float, object_class: str, coord_mode=False) -> Iterator[set]:
         """
         Returns an iterator over cells in the hash that are around a given center point.
 

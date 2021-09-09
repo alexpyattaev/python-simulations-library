@@ -132,3 +132,10 @@ def test_random_DAG():
         # plt.figure()
         # nx.draw_networkx(G, pos= graphviz_layout(G, prog="dot"), with_labels=True)   # default spring_layout
         # plt.show()
+
+
+def select_weighted(weights):
+    """Selects option based on given sample probabilities/weights/biases"""
+    weights = np.array(weights)
+    weights = np.cumsum(weights / weights.sum())
+    return np.searchsorted(weights, uniform())

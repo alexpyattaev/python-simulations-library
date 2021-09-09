@@ -31,7 +31,7 @@ def matplotlib_IEEE_style():
            grid='True')
     mpl.rc('text', color='(0.04, 0.14, 0.42)')
     mpl.rc('font', family='sans-serif', weight='bold', size=12)
-    mpl.rc('legend', fontsize='medium')
+    mpl.rc('legend', fontsize='medium', handlelength=3)
     mpl.rc('axes', prop_cycle=cycler(color=[
         (0.04, 0.52, 0.78),
         (0.01, 0.57, 0.58),
@@ -53,7 +53,7 @@ def matplotlib_WINTER_style():
     mpl.rc('lines', linewidth=2, markersize=9)
 
     mpl.rc('font', family='Sans', weight='bold', size=12)
-    mpl.rc('legend', fontsize='medium')
+    mpl.rc('legend', fontsize='medium', handlelength=3)
     mpl.rc('errorbar', capsize=5)
     mpl.rc('axes', prop_cycle=cycler(color=['blue', 'green', 'red'], marker=('v', 'o', '+')))
     mpl.rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica']})
@@ -237,6 +237,7 @@ def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
 
 def nice_cdf_plot(datas, title: str, names: Iterable = tuple(),
                   markers: Iterable = tuple(), styles: Iterable = tuple(),
+                  linewidths: Iterable = tuple(),
                   colors: Iterable = tuple(), ignore_missed=False,
                   vertical_threshold_lines=(0.5, 2.0),
                   legend_outside=8,
@@ -263,7 +264,7 @@ def nice_cdf_plot(datas, title: str, names: Iterable = tuple(),
 
     f = matplotlib.pyplot.figure(figsize=[16, 10])
     ax = matplotlib.pyplot.gca()
-    for data, tit, mrk, sty, clr in zip_longest(datas, names, markers, styles, colors):
+    for data, tit, mrk, sty, clr, lw in zip_longest(datas, names, markers, styles, colors, linewidths):
         if data is None:
             raise ValueError(f'data and names length do not match {len(datas)}, {len(names)}')
 
@@ -275,7 +276,7 @@ def nice_cdf_plot(datas, title: str, names: Iterable = tuple(),
         if title is None:
             tit = ""
 
-        ax.plot(X, Y, color=clr, marker=mrk, linestyle=sty, label=tit)
+        ax.plot(X, Y, color=clr, marker=mrk, linestyle=sty, label=tit, linewidth=lw)
     ax.set_xlabel(xlabel)
     ax.vlines(x=vertical_threshold_lines, ymin=0, ymax=100, label='thresholds', colors='k')
     if len(datas) <= legend_outside:

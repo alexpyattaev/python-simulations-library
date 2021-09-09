@@ -1,5 +1,6 @@
 import argparse
 import dataclasses
+import distutils.util
 from enum import EnumMeta, IntEnum, Enum
 from io import IOBase
 from typing import Callable, Union, Dict, TypeVar, Type
@@ -24,6 +25,7 @@ class repr_override:
 
     def __eq__(self, other):
         return other == self.v
+
 
 @dataclasses.dataclass
 class Force_Annotation:
@@ -50,6 +52,7 @@ class Arg:
         :param pos: flag to indicate if positional
         :param kwargs: passed to argparse
         """
+        kwargs = kwargs.copy()
         kwargs['type'] = typ
         self.kwargs = kwargs
         self.pos = pos
@@ -75,17 +78,39 @@ class Int(Arg):
 class Bool(Arg):
     """Bool argument"""
 
-    def __init__(self, flag=True, **kwargs):
+    def __init__(self, flag=False, **kwargs):
         """
         :param flag: if true the value will act as a flag (as in store_true)
         :param kwargs: passed to argparse
         """
         self.flag = flag
         Arg.__init__(self, typ=bool, **kwargs)
+        if 'default' in kwargs:
+            self.set_default(kwargs['default'])
 
     def set_default(self, default):
+        def strtobool(val):
+            """Convert a string representation of truth to true (1) or false (0).
+
+            True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+            are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+            'val' is anything else.
+            """
+            val = val.lower()
+            if val in ('y', 'yes', 't', 'true', 'on', '1'):
+                return True
+            elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+                return False
+            else:
+                raise ValueError("invalid truth value %r" % (val,))
+
         if self.flag:
-            self.kwargs.pop('type')
+            try:
+                # This is ok to ignore since same instance may be used to parse many times,
+                # in which case this is already done
+                self.kwargs.pop('type')
+            except KeyError:
+                pass
             if default is True:
                 self.kwargs['action'] = 'store_false'
             elif default is False:
@@ -93,6 +118,7 @@ class Bool(Arg):
             else:
                 raise ValueError('Bool flags must have default set!')
         else:
+            self.kwargs['type'] = strtobool
             Arg.set_default(self, default)
 
 
@@ -236,7 +262,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
             value = value_or_class
             if default is not None:
                 value.set_default(default)
-        if verbose or True:
+        if verbose:
             print("add_argument", mangle_name(name, value.pos), value.kwargs)
         parser.add_argument(mangle_name(name, value.pos), **value.kwargs)
 
@@ -247,6 +273,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
 @dataclasses.dataclass
 class Arg_Container(Force_Annotation):
     """Argument Container class"""
+
     def asdict(self) -> Dict[str, object]:
         result = {}
         for f in dataclasses.fields(self):
@@ -286,6 +313,10 @@ def arg_definitions():
         int_enum_field: Choice[int_enum](help="choice from int enum") = int_enum.TWO
 
         list_choice: Choice[[1, 4, 7]](help="choice from iterable") = 0
+        bool_field: bool = False
+        bool_flag: Bool(flag=True) = False
+        bool_switch: Bool(flag=False) = False
+
     return Args
 
 
@@ -307,3 +338,17 @@ def test_help(arg_definitions):
     with pytest.raises(SystemExit):
         parse_to(arg_definitions, args=["--help"])
 
+
+def test_bool(arg_definitions):
+    opt = "--bool_field=False  --bool_switch=False".split()
+    args = parse_to(arg_definitions, args=opt, verbose=True)
+    #print(args.bool_field, args.bool_flag, args.bool_switch)
+    assert not args.bool_field
+    assert not args.bool_flag
+    assert not args.bool_switch
+
+    opt = "--bool_field=True --bool_flag --bool_switch=True".split()
+    args = parse_to(arg_definitions, args=opt, verbose=True)
+    assert args.bool_field
+    assert args.bool_flag
+    assert args.bool_switch

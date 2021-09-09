@@ -31,7 +31,7 @@ def hexgrid(h: HEX, r: float, with_sectors=True):
     ang = []
     if with_sectors:
         for d in range(3):
-            ang.append(wrap_angle(d * 2 / 3 * pi - pi / 6))
+            ang.append(wrap_angle(d * 2 / 3 * pi + pi / 6))  #  - pi / 6 for alternative hex layout
         return x, y, ang
     else:
         return x, y
