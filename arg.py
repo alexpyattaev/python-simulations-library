@@ -26,6 +26,9 @@ class repr_override:
     def __eq__(self, other):
         return other == self.v
 
+    def __hash__(self):
+        return hash(self.v)
+
 
 @dataclasses.dataclass
 class Force_Annotation:

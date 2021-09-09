@@ -136,6 +136,6 @@ def test_random_DAG():
 
 def select_weighted(weights):
     """Selects option based on given sample probabilities/weights/biases"""
-    weights = np.array(weights)
+    weights = np.array(weights, dtype=float)
     weights = np.cumsum(weights / weights.sum())
     return np.searchsorted(weights, uniform())
