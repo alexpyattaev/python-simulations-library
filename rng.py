@@ -1,4 +1,6 @@
+from abc import ABC, abstractmethod
 from functools import partial
+from numbers import Number
 from typing import Union
 
 import numpy as np
@@ -50,6 +52,94 @@ def erlang(shape: int = 2, mean: float = 1.0, size=None, rng=_rng) -> Union[floa
     assert isinstance(shape, int)
     assert shape > 0
     return rng.gamma(shape, mean / shape, size)
+
+
+class RandomVar(ABC, Number):
+    @abstractmethod
+    def __float__(self) -> float:
+        ...
+
+    @abstractmethod
+    def __int__(self) -> float:
+        ...
+
+    @abstractmethod
+    def __str__(self) -> float:
+        ...
+
+    @abstractmethod
+    def vector(self, N, dtype=float)->np.ndarray:
+        ...
+
+    def __hash__(self):
+        raise RuntimeError("Random numbers are not hashable")
+
+class Random_Const(RandomVar):
+    def __init__(self, mean: float) -> None:
+        self.mean = mean
+
+    def __float__(self):
+        return self.mean
+
+    def __int__(self):
+        return int(self.mean)
+
+    def vector(self, N, dtype=float):
+        return np.full(N, fill_value=self.mean, dtype=dtype)
+
+    def __str__(self) -> str:
+        return f"Const({self.mean:.2f} +- {0})"
+
+
+class Random_Gamma(RandomVar):
+    def __init__(self, mean: float, stdev: float) -> None:
+        # https://en.wikipedia.org/wiki/Gamma_distribution
+        #
+        # ... and keeping in mind that Python calls (alpha, beta)
+        # what wikipedia calls (k, theta)
+        #
+        # (1) mean = k * theta
+        # (2) variance = k * (theta ** 2)
+        #
+        # keeping in mind variance = stdev**2
+        #
+        # dividing eq. (2) by (1) we get:
+        # theta = stdev**2 / mean
+        #
+        # ... and then from (1):
+        # k = mean / theta
+
+        self._mean = mean
+        self._stdev = stdev
+
+        variance = stdev ** 2
+        theta = variance / mean
+        k = mean / theta
+
+        assert k > 0 and theta > 0
+        self._k = k
+        self._theta = theta
+
+
+    def __str__(self) -> str:
+        return f"Gamma({self._mean:.2f} +- {self._stdev:.2f})"
+
+    def __float__(self):
+        return gamma(self._k, self._theta)
+
+    def __int__(self):
+        return int(gamma(self._k, self._theta))
+
+    def vector(self, N, dtype=float):
+        return np.array(gamma(self._k, self._theta, size=N), dtype=dtype)
+
+    @property
+    def mean(self) -> float:
+        return self._mean
+
+    @property
+    def stdev(self) -> float:
+        return self._stdev
 
 
 def test_erlang():
