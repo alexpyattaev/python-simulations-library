@@ -41,9 +41,6 @@ class Any(object):
     def __repr__(self):
         return "*"
 
-    def __hash__(self):
-        return 0
-
 
 ANY = Any()
 
