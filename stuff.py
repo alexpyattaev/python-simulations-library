@@ -27,7 +27,7 @@ def pprint(*args, **kwargs):
     print(*args, **kwargs)
 
 
-class Any(object):
+class _Any(object):
     """
     An object that compares equal with everything
     """
@@ -42,7 +42,7 @@ class Any(object):
         return "*"
 
 
-ANY = Any()
+ANY = _Any() #An object that compares equal with everything
 
 
 class Any_Of(object):
