@@ -4,6 +4,7 @@
 import itertools
 import mmap
 import os
+import sys
 import unittest
 import warnings
 from hashlib import md5
@@ -134,6 +135,19 @@ def safe_remove(target):
             pass
         else:
             raise e
+
+def get_ram_usage() -> int:
+    if sys.platform != 'linux':
+        return 0
+    pid = os.getpid()
+    with open(f"/proc/{pid}/status") as f:
+        for l in f.readlines():
+            if not l.startswith('VmRSS'):
+                continue
+            val = int(l.split(':')[1].strip().split(' ')[0])
+            return val
+        else:
+            return 0
 
 
 def check_ram(threshold_percent=5, exit_on_failure=True):
