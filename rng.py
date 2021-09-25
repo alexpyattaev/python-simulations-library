@@ -6,6 +6,8 @@ from typing import Union
 
 import numpy as np
 import numpy.random as nprandom
+from numpy import NaN
+
 from lib.numba_opt import jit_hardcore
 
 _rng = nprandom.RandomState()
@@ -40,6 +42,28 @@ exponential = _rng.exponential
 binomial = _rng.binomial
 rayleigh = _rng.rayleigh
 geometric = _rng.geometric
+
+
+def exponential_capped(mean: float, cap_rate=5.0, N = None, rng=_rng) -> Union[float, np.ndarray]:
+    """Capped exponential, i.e. with constrained output
+    :param mean: desired mean value
+    :param cap_rate: mean*cap_rate defines max value this function will ever return
+    :param N: amount of random samples to make
+    :param rng: custom RNG to use. Will use default RNG if not provided.
+    :returns float value for value requested
+    """
+    return np.minimum(rng.exponential(mean, size=N), cap_rate*mean)
+
+
+def geometric_capped(mean: float, cap_rate=5.0,  N = None, rng=_rng) -> Union[int, np.ndarray]:
+    """Capped geometric, i.e. with constrained output
+    :param mean: desired mean value
+    :param cap_rate: mean*cap_rate defines max value this function will ever return
+    :param N: amount of random samples to make
+    :param rng: custom RNG to use. Will use default RNG if not provided.
+    :returns float value for value requested
+    """
+    return np.minimum(rng.geometric(1/mean, size=N), cap_rate*mean)
 
 
 def erlang(shape: int = 2, mean: float = 1.0, size=None, rng=_rng) -> Union[float, np.ndarray]:
@@ -91,9 +115,11 @@ class RandomVar(ABC, Number):
     def __hash__(self):
         raise RuntimeError("Random numbers are not hashable")
 
+    def to_json(self):
+        return {"RV": self.__class__.__name__.replace("Random", ""), "mean": self.mean, "stdev": self.stdev}
+
 
 class Random_Const(RandomVar):
-
     def __init__(self, mean: float) -> None:
         self._mean = mean
 
@@ -103,6 +129,7 @@ class Random_Const(RandomVar):
     def __int__(self):
         return int(self._mean)
 
+    @property
     def mean(self):
         return self._mean
 
@@ -118,6 +145,8 @@ class Random_Const(RandomVar):
     @property
     def stdev(self) -> float:
         return 0.0
+
+
 
 
 class Random_Gamma(RandomVar):
@@ -174,32 +203,66 @@ class Random_Gamma(RandomVar):
 
 
 class Random_Expo(RandomVar):
-    def __init__(self, mean: float) -> None:
+    def __init__(self, mean: float, cap_rate=5.0) -> None:
         self._mean = mean
         self._lambda = 1 / self._mean
+        self.cap_rate = cap_rate
 
     def __str__(self) -> str:
-        return f"Exp({self._mean}:.3g)"
+        return f"Exp({self._mean:.3g})"
 
     def __repr__(self) -> str:
         return f"Random_Expo({self._mean})"
 
     def __float__(self):
-        return exponential(self._mean)
+        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate)
 
     def __int__(self):
-        return geometric(self._lambda)
+        return geometric_capped(mean=self.mean, cap_rate=self.cap_rate)
 
     @property
     def stdev(self) -> float:
         return self._mean
 
     def vector(self, N: int, dtype=float) -> np.ndarray:
-        return exponential(self._mean, size=N) if dtype == float else geometric(self._lambda, size=N)
+        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate, N=N) if dtype == float else (
+                geometric_capped(mean=self._mean, cap_rate=self.cap_rate, N=N))
 
     @property
     def mean(self) -> float:
         return self._mean
+
+
+def test_rand_exp():
+    M = 5.0
+    R = 10.0
+    rtol = 0.1
+    N = 10000
+    rv = Random_Expo(mean=M, cap_rate=R)
+
+    # test individual exponential sampling
+    vals = np.array([exponential_capped(M, cap_rate=R) for _ in range(N)])
+    assert (vals <= M*R).all()
+    assert np.isclose(np.mean(vals), M, rtol=rtol)
+    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+
+    # test vector exponential sampling
+    vals = rv.vector(N, dtype=float)
+    assert (vals <= M * R).all()
+    assert np.isclose(np.mean(vals), M, rtol=rtol)
+    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+
+    # test geometric sampling
+    vals = rv.vector(N, dtype=int)
+    assert (vals <= M * R).all()
+    assert np.isclose(np.mean(vals), M, rtol=rtol)
+    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+
+    # test individual exponential sampling
+    vals = np.array([float(rv) for _ in range(N)])
+    assert (vals <= M * R).all()
+    assert np.isclose(np.mean(vals), M, rtol=rtol)
+    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
 
 
 class Random_Uniform(RandomVar):
@@ -245,24 +308,7 @@ def test_erlang():
     assert np.isclose(np.var(zz), v, rtol=0.1)
 
 
-@jit_hardcore
-def first_value_below(arr, thr):
-    for i in arr:
-        if i < thr:
-            return i
-    return thr
 
-
-def exponential_capped(mean: float, cap_rate=5.0, _fsample=8, rng=_rng) -> float:
-    """Capped exponential, i.e. with constrained output
-    :param mean: desired mean value
-    :param cap_rate: mean*cap_rate defines max value this function will ever return
-    :param _fsample: amount of random samples to make in oreder to hit cap rate.
-    :param rng: custom RNG to use. Will use default RNG if not provided.
-    :returns float value for value requested
-    """
-    x = rng.exponential(mean, size=_fsample)
-    return first_value_below(x, cap_rate * mean)
 
 
 # noinspection PyArgumentList

@@ -270,7 +270,12 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
         parser.add_argument(mangle_name(name, value.pos), **value.kwargs)
 
     arg_dict = parser.parse_args(args=args)
-    return container_class(**vars(arg_dict))
+    corrected_dict = {}
+    for k, v in vars(arg_dict).items():
+        if isinstance(v, repr_override):
+            v = v.v
+        corrected_dict[k] = v
+    return container_class(**corrected_dict)
 
 
 @dataclasses.dataclass
@@ -282,6 +287,20 @@ class Arg_Container(Force_Annotation):
         for f in dataclasses.fields(self):
             value = getattr(self, f.name)
             if isinstance(value, IOBase) and hasattr(value, 'name'):
+                value = value.name
+            result[f.name] = value
+        return result
+
+    def to_json(self):
+        result = {}
+        for f in dataclasses.fields(self):
+            value = getattr(self, f.name)
+            if isinstance(value, IOBase):
+                if hasattr(value, 'name'):
+                    value = value.name
+                else:
+                    raise TypeError(f"Could not convert filed {f.name}={value}")
+            if isinstance(value, Enum):
                 value = value.name
             result[f.name] = value
         return result
