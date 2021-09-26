@@ -18,15 +18,6 @@ except ImportError:
     speed_of_light = 299792458.0 / 1.0003
 
 
-def pprint(*args, **kwargs):
-    frm = inspect.stack()[1]
-    s = f"{os.path.split(frm[1])[1]}::{frm[3]}::"
-    del frm
-
-    args = [s] + list(args)
-    print(*args, **kwargs)
-
-
 class _Any(object):
     """
     An object that compares equal with everything
