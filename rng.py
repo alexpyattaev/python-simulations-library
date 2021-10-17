@@ -81,6 +81,9 @@ def erlang(shape: int = 2, mean: float = 1.0, size=None, rng=_rng) -> Union[floa
 
 
 class RandomVar(ABC, Number):
+    def __init__(self):
+        self._rng = nprandom.RandomState()
+
     @abstractmethod
     def __float__(self) -> float:
         """Return a float sample"""
