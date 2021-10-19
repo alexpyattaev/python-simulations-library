@@ -1,34 +1,35 @@
 from abc import ABC, abstractmethod
 from functools import partial
-from math import sqrt
+
 from numbers import Number
 from typing import Union
 
 import numpy as np
-import numpy.random as nprandom
-from numpy import NaN
 
-from lib.numba_opt import jit_hardcore
+from numpy.random import Generator, default_rng
 
-_rng = nprandom.RandomState()
+_seed = [7]
 
-_seed = [0, 0]
+
+def make_local_random(seed: int = None) -> Generator:
+    if seed is not None:
+        s = seed
+    else:
+        _seed[0] += 1
+        s = _seed[0]
+    return default_rng(s)
+
+
+_rng: Generator = make_local_random()
 
 
 def set_seed(x=7):
+    global _rng
     _seed[0] = x
-    _seed[1] = x
-    _rng.seed(x)
+    _rng = make_local_random(x)
 
 
-def make_local_random() -> nprandom.RandomState:
-    _seed[1] += 1
-    return nprandom.RandomState(_seed[1])
-
-
-set_seed()
-
-randint = _rng.randint
+randint = _rng.integers
 choice = _rng.choice
 uniform = _rng.uniform
 sample = partial(_rng.choice, replace=False)
@@ -36,7 +37,7 @@ shuffle = _rng.shuffle
 normal = _rng.normal
 laplace = _rng.laplace
 poisson = _rng.poisson
-rand = _rng.rand
+rand = _rng.random
 gamma = _rng.gamma
 exponential = _rng.exponential
 binomial = _rng.binomial
@@ -44,7 +45,7 @@ rayleigh = _rng.rayleigh
 geometric = _rng.geometric
 
 
-def exponential_capped(mean: float, cap_rate=5.0, N = None, rng=_rng) -> Union[float, np.ndarray]:
+def exponential_capped(mean: float, cap_rate=5.0, N=None, rng=_rng) -> Union[float, np.ndarray]:
     """Capped exponential, i.e. with constrained output
     :param mean: desired mean value
     :param cap_rate: mean*cap_rate defines max value this function will ever return
@@ -52,10 +53,10 @@ def exponential_capped(mean: float, cap_rate=5.0, N = None, rng=_rng) -> Union[f
     :param rng: custom RNG to use. Will use default RNG if not provided.
     :returns float value for value requested
     """
-    return np.minimum(rng.exponential(mean, size=N), cap_rate*mean)
+    return np.minimum(rng.exponential(mean, size=N), cap_rate * mean)
 
 
-def geometric_capped(mean: float, cap_rate=5.0,  N = None, rng=_rng) -> Union[int, np.ndarray]:
+def geometric_capped(mean: float, cap_rate=5.0, N=None, rng=_rng) -> Union[int, np.ndarray]:
     """Capped geometric, i.e. with constrained output
     :param mean: desired mean value
     :param cap_rate: mean*cap_rate defines max value this function will ever return
@@ -63,7 +64,7 @@ def geometric_capped(mean: float, cap_rate=5.0,  N = None, rng=_rng) -> Union[in
     :param rng: custom RNG to use. Will use default RNG if not provided.
     :returns float value for value requested
     """
-    return np.minimum(rng.geometric(1/mean, size=N), cap_rate*mean)
+    return np.minimum(rng.geometric(1 / mean, size=N), cap_rate * mean)
 
 
 def erlang(shape: int = 2, mean: float = 1.0, size=None, rng=_rng) -> Union[float, np.ndarray]:
@@ -81,8 +82,8 @@ def erlang(shape: int = 2, mean: float = 1.0, size=None, rng=_rng) -> Union[floa
 
 
 class RandomVar(ABC, Number):
-    def __init__(self):
-        self._rng = nprandom.RandomState()
+    def __init__(self, seed: int = None):
+        self._rng = make_local_random(seed)
 
     @abstractmethod
     def __float__(self) -> float:
@@ -123,7 +124,8 @@ class RandomVar(ABC, Number):
 
 
 class Random_Const(RandomVar):
-    def __init__(self, mean: float) -> None:
+    def __init__(self, mean: float, seed: int = None) -> None:
+        RandomVar.__init__(self)
         self._mean = mean
 
     def __float__(self):
@@ -150,10 +152,8 @@ class Random_Const(RandomVar):
         return 0.0
 
 
-
-
 class Random_Gamma(RandomVar):
-    def __init__(self, mean: float, stdev: float) -> None:
+    def __init__(self, mean: float, stdev: float, cap_rate: float = 5.0, seed: int = None) -> None:
         # https://en.wikipedia.org/wiki/Gamma_distribution
         #
         # ... and keeping in mind that Python calls (alpha, beta)
@@ -169,10 +169,10 @@ class Random_Gamma(RandomVar):
         #
         # ... and then from (1):
         # k = mean / theta
-
+        RandomVar.__init__(self, seed)
         self._mean = mean
         self._stdev = stdev
-
+        self.cap_rate = cap_rate
         variance = stdev ** 2
         theta = variance / mean
         k = mean / theta
@@ -188,13 +188,20 @@ class Random_Gamma(RandomVar):
         return f"Random_Gamma({self._mean:.2g},{self._stdev:.2g})"
 
     def __float__(self):
-        return gamma(self._k, self._theta)
+        return np.clip(self._rng.gamma(self._k, self._theta),
+                       a_min=self._mean - self.cap_rate * self._stdev,
+                       a_max=self._mean + self.cap_rate * self._stdev)
 
     def __int__(self):
-        return int(gamma(self._k, self._theta))
+        return int(np.clip(self._rng.gamma(self._k, self._theta),
+                           a_min=self._mean - self.cap_rate * self._stdev,
+                           a_max=self._mean + self.cap_rate * self._stdev))
 
     def vector(self, N, dtype=float):
-        return np.array(gamma(self._k, self._theta, size=N), dtype=dtype)
+        return np.array(np.clip(self._rng.gamma(self._k, self._theta, size=N),
+                                a_min=self._mean - self.cap_rate * self._stdev,
+                                a_max=self._mean + self.cap_rate * self._stdev,
+                                ), dtype=dtype)
 
     @property
     def mean(self) -> float:
@@ -206,7 +213,8 @@ class Random_Gamma(RandomVar):
 
 
 class Random_Expo(RandomVar):
-    def __init__(self, mean: float, cap_rate=5.0) -> None:
+    def __init__(self, mean: float, cap_rate=5.0, seed: int = None) -> None:
+        RandomVar.__init__(self, seed)
         self._mean = mean
         self._lambda = 1 / self._mean
         self.cap_rate = cap_rate
@@ -218,22 +226,30 @@ class Random_Expo(RandomVar):
         return f"Random_Expo({self._mean})"
 
     def __float__(self):
-        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate)
+        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate, rng=self._rng)
 
     def __int__(self):
-        return geometric_capped(mean=self.mean, cap_rate=self.cap_rate)
+        return geometric_capped(mean=self.mean, cap_rate=self.cap_rate, rng=self._rng)
 
     @property
     def stdev(self) -> float:
         return self._mean
 
     def vector(self, N: int, dtype=float) -> np.ndarray:
-        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate, N=N) if dtype == float else (
-                geometric_capped(mean=self._mean, cap_rate=self.cap_rate, N=N))
+        return exponential_capped(mean=self._mean, cap_rate=self.cap_rate, N=N, rng=self._rng) if dtype == float else (
+            geometric_capped(mean=self._mean, cap_rate=self.cap_rate, N=N, rng=self._rng))
 
     @property
     def mean(self) -> float:
         return self._mean
+
+
+# noinspection PyArgumentList
+def test_rand_gamma():
+    rv = Random_Gamma(mean=1.0, stdev=1.0, cap_rate=3.0)
+    vals = rv.vector(1000)
+    assert 0 < vals.min() < 0.1
+    assert 3.95 < vals.max() <= 4.0
 
 
 def test_rand_exp():
@@ -245,31 +261,32 @@ def test_rand_exp():
 
     # test individual exponential sampling
     vals = np.array([exponential_capped(M, cap_rate=R) for _ in range(N)])
-    assert (vals <= M*R).all()
+    assert (vals <= M * R).all()
     assert np.isclose(np.mean(vals), M, rtol=rtol)
-    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+    assert np.isclose(np.var(vals), rv.stdev ** 2, rtol=rtol * 3)
 
     # test vector exponential sampling
     vals = rv.vector(N, dtype=float)
     assert (vals <= M * R).all()
     assert np.isclose(np.mean(vals), M, rtol=rtol)
-    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+    assert np.isclose(np.var(vals), rv.stdev ** 2, rtol=rtol * 3)
 
     # test geometric sampling
     vals = rv.vector(N, dtype=int)
     assert (vals <= M * R).all()
     assert np.isclose(np.mean(vals), M, rtol=rtol)
-    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+    assert np.isclose(np.var(vals), rv.stdev ** 2, rtol=rtol * 3)
 
     # test individual exponential sampling
     vals = np.array([float(rv) for _ in range(N)])
     assert (vals <= M * R).all()
     assert np.isclose(np.mean(vals), M, rtol=rtol)
-    assert np.isclose(np.var(vals), rv.stdev**2, rtol=rtol*3)
+    assert np.isclose(np.var(vals), rv.stdev ** 2, rtol=rtol * 3)
 
 
 class Random_Uniform(RandomVar):
-    def __init__(self, a: float, b: float) -> None:
+    def __init__(self, a: float, b: float, seed: int = None) -> None:
+        RandomVar.__init__(self, seed)
         assert b >= a
         self._a = a
         self._b = b
@@ -300,7 +317,6 @@ class Random_Uniform(RandomVar):
         return (self._a + self._b) / 2
 
 
-
 def test_erlang():
     k = 4  # order
     e = 10  # expectation
@@ -311,18 +327,15 @@ def test_erlang():
     assert np.isclose(np.var(zz), v, rtol=0.1)
 
 
-
-
-
 # noinspection PyArgumentList
 def toss_coin(p):
     """Toss a coin with a given success probability
     :param p: the probability to use. If p is a vector, returns results of multiple tosses
     :returns: the result of toss as boolean value or array"""
     try:
-        return _rng.rand(len(p)) < p
+        return rand(len(p)) < p
     except TypeError:
-        return _rng.rand() < p
+        return rand() < p
 
 
 def rand_sign():
