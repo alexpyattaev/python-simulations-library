@@ -243,14 +243,7 @@ def vector_reflect(v: np.ndarray, n: np.ndarray) -> np.ndarray:
     return v - 2 * np.dot(n, v) * n
 
 
-
-
-
-unit_vector= vector_normalize
-
-
-
-
+unit_vector = vector_normalize
 
 
 @jit_hardcore
@@ -272,5 +265,26 @@ def angle_between_vectors(v0: np.ndarray, v1: np.ndarray, directed: bool = True,
     return np.arccos(dot if directed else np.fabs(dot))
 
 
+@jit_hardcore
+def split_normal_and_tangential(N: np.ndarray, V: np.ndarray):
+    """Split vector into normal and tangential component w.r.t. plane given by N
+    :param N: normal vector for plane
+    :param V: vector to decompose
+    """
+    C_n = vector_project(v=N, p=V)
+    C_t = V - C_n
+    return C_n, C_t
 
 
+def test_split_normal_and_tangential():
+    for i in range(1000):
+        E = np.random.uniform(-1, 1, size=3)
+        N = np.random.uniform(-1, 1, size=3)
+
+        C_n, C_t = split_normal_and_tangential(N=N, V=E)
+
+        # print(f"normal {C_n}, tangential {C_t}")
+        assert np.isclose(norm(C_n + C_t), norm(E)), "sum of vectors must agree"
+        assert np.isclose(np.dot(C_n, C_t), 0), "components are orthogonal"
+        assert np.isclose(np.dot(N, C_t), 0), "Tangential component is normal to N vector"
+        assert np.dot(N, C_n) == norm(C_n), "Normal component is present and is along the N vector"

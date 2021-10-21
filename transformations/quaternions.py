@@ -324,7 +324,7 @@ def quaternion_between_vectors(v1: np.ndarray, v2: np.ndarray) -> quaternion:
     v1 = vector_normalize(v1)
     v2 = vector_normalize(v2)
 
-    if np.allclose(v1, - v2):
+    if np.all(v1 + v2 < EPS):
         return quaternion_from_scalar_and_vector(scalar=0, vector=vector_normalize(orthogonal(v1)))
 
     half = vector_normalize(v1 + v2)
