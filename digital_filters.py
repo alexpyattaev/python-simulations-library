@@ -18,6 +18,7 @@ class Stateful_Linear_Filter:
         self.b = b
         self.a = a
         self._state = signal.lfilter_zi(self.b, self.a)
+        self._last = np.NaN
 
     def __call__(self, x: Union[float, Iterable]) -> Union[float, Iterable]:
         """
@@ -32,10 +33,16 @@ class Stateful_Linear_Filter:
             return_array = True
 
         x, self._state = signal.lfilter(self.b, self.a, np.array(x), zi=self._state)
+
         if return_array:
+            self._last = x[-1]
             return x
         else:
+            self._last = x[0]
             return x[0]
+
+    def __float__(self):
+        return self._last
 
 
 def ZOH_filter(data, actual_times, desired_times):
