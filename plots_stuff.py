@@ -12,6 +12,7 @@ import mpl_toolkits.mplot3d
 import numpy as np
 from matplotlib import cycler, ticker
 from matplotlib.colors import Normalize
+from matplotlib.lines import Line2D
 from matplotlib.pyplot import subplots, show
 from scipy.interpolate import interp1d
 from scipy.signal import get_window
@@ -334,7 +335,7 @@ def plot_cylinder(ax: mpl_toolkits.mplot3d.axes3d.Axes3D, pos, size: List[float]
     ax.plot_surface(Xc, 2 * pos[1] - Yc, Zc, rcount=rcount, ccount=ccount, **kwargs)
 
 
-def plot_line(ax, p1: np.ndarray, p2: np.ndarray, *args, **kwargs) -> None:
+def plot_line(ax, p1: np.ndarray, p2: np.ndarray, *args, **kwargs)->Line2D:
     """
     Plot a line between two points on axes ax.
 
@@ -347,9 +348,9 @@ def plot_line(ax, p1: np.ndarray, p2: np.ndarray, *args, **kwargs) -> None:
     """
     p = np.vstack((p1, p2))
     if ax.name == "3d":
-        ax.plot(p[:, 0], p[:, 1], *args, zs=p[:, 2], **kwargs)
+        return ax.plot(p[:, 0], p[:, 1], *args, zs=p[:, 2], **kwargs)[0]
     else:
-        ax.plot(p[:, 0], p[:, 1], *args, **kwargs)
+        return ax.plot(p[:, 0], p[:, 1], *args, **kwargs)[0]
 
 
 def plot_var_thick(x, wmin: float = 0.5, wmax: float = 2, **style):
