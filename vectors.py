@@ -177,7 +177,8 @@ def vector_project(v: np.ndarray, p: np.ndarray) -> np.ndarray:
     Both vectors are assumed to start at origin.
     :rtype: np.ndarray
     """
-    return np.dot(p, v) / (norm(v) ** 2) * v
+    #return np.dot(p, v) / (norm(v) ** 2) * v
+    return np.dot(p, v) / (norm(v) ** 2) * vector_normalize(v)
 
 
 @jit_hardcore
