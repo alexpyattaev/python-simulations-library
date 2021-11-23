@@ -5,8 +5,8 @@
 
 """
 __author__ = 'Alex Pyattaev'
-import inspect
 
+import inspect
 
 
 class arg_check(object):
@@ -17,6 +17,7 @@ class arg_check(object):
     contains unprotected calls to eval!!!
 
     """
+
     def __init__(self, t, l):
         """
         constructs the arg-check object
@@ -42,7 +43,7 @@ class arg_check(object):
         """
         try:
             ll = eval("lambda {}: {}".format(name, self._l))(val)
-            #print(ll)
+            # print(ll)
         except:
             ll = False
         return isinstance(val, self._t) and ll
@@ -58,6 +59,7 @@ def validate(f):
     :param f: the function to wrap
     :return: Wrapped function
     """
+
     def safe_str(o):
         try:
             return str(o)
@@ -69,42 +71,43 @@ def validate(f):
         fsig = inspect.signature(f)
         params = dict(zip(list(fsig.parameters)[0:len(args)], args))
         params.update(kwargs)
-        #Prepare debug messages
+        # Prepare debug messages
         vars = ', '.join('{}={}'.format(*map(safe_str, pair)) for pair in params.items())
         msg = 'call to {}({}) failed: '.format(fname, vars)
-        #print('wrapped call to {}({})'.format(fname, params))
+        # print('wrapped call to {}({})'.format(fname, params))
         for k, v in fsig.parameters.items():
             if k in params:
                 p = params[k]
             else:
                 continue
             if v.annotation == inspect._empty:
-                #If no type hint is given do nothing
+                # If no type hint is given do nothing
                 pass
             elif isinstance(v.annotation, arg_check):
-                #see if our annotation is an arg_check instance holding a lambda or a function of some sort
+                # see if our annotation is an arg_check instance holding a lambda or a function of some sort
                 test = v.annotation.check(params[k], k)
                 assert test, msg + "parameter {} did not match condition {}".format(
                     k, str(v.annotation))
             else:
-                #Otherwise just do plain type check
+                # Otherwise just do plain type check
                 assert isinstance(p, v.annotation), msg + "parameter {} did not match type {}".format(
                     k, v.annotation)
         ret = f(*args, **kwargs)
-        #Now test the output
-        #see if our annotation is an arg_check instance holding a lambda or a function of some sort
+        # Now test the output
+        # see if our annotation is an arg_check instance holding a lambda or a function of some sort
         ra = fsig.return_annotation
         if ra == inspect._empty:
-            #If no type hint is given do nothing
+            # If no type hint is given do nothing
             pass
         elif isinstance(ra, arg_check):
             test = ra.check(ret, 'ret')
             assert test, "Output condition violation {}".format(ra)
-            #Otherwise just do plain type check
+            # Otherwise just do plain type check
         else:
             assert isinstance(ret, ra), "Output type mismatch, expected {} got {}:{}".format(
                 ra, ret, type(ret))
         return ret
+
     return wrapper
 
 
@@ -116,18 +119,23 @@ if __name__ == "__main__":
             self.b = b * a
 
         @validate
-        def test(self, x: str, y: int=5)-> arg_check(str, "len(ret)>0"):
+        def test(self, x: str, y: int = 5) -> arg_check(str, "len(ret)>0"):
             return x * self.a
 
         def __str__(self):
             return self.b
+
+
     x = T(5, "foo")
     print(x)
     print(x.test(x="lol"))
     print(x.test("5", y=0))
+
+
     @validate
     def foo(x: arg_check(float, "10 < x < 100"), y: float) -> float:
         return x * y
+
 
     print(foo(20.0, 0.0))
     print(foo(1.0, 6.8))

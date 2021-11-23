@@ -3,6 +3,7 @@ from typing import Sequence, Tuple
 
 import pytest
 import scipy.special
+from numpy import NaN
 
 from lib.stuff import float_inf
 import numpy as np
@@ -20,17 +21,19 @@ def get_confidence(array: Sequence, confidence: float = 0.95) -> Tuple[float, fl
     :param confidence: desired confidence level (0..1)
     :return: mean, error bound
     """
-    N = len(array)
-    if N == 0:
-        raise ValueError("Can not get confidence of empty array")
     if not (0 <= confidence < 1.0):
         raise ArithmeticError("Can not be more than 100% certain")
+
+    array = np.array(array)
+    N = np.sum(np.isfinite(array))
+    if N == 0:
+        return NaN, NaN
 
     if N == 1:
         return array[0], float_inf
 
     # noinspection PyTypeChecker
-    return np.mean(array), sqrt(2)*scipy.special.erfinv(confidence) * np.std(array) / sqrt(N)
+    return np.nanmean(array), sqrt(2)*scipy.special.erfinv(confidence) * np.nanstd(array) / sqrt(N)
 
 
 def test_get_confidence():
