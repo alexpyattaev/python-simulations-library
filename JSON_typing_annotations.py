@@ -1,7 +1,13 @@
+import json
 from typing import *
 
 _JSONType_0 = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
 _JSONType_1 = Union[str, int, float, bool, None, Dict[str, _JSONType_0], List[_JSONType_0]]
 _JSONType_2 = Union[str, int, float, bool, None, Dict[str, _JSONType_1], List[_JSONType_1]]
 _JSONType_3 = Union[str, int, float, bool, None, Dict[str, _JSONType_2], List[_JSONType_2]]
-JSONType = Union[str, int, float, bool, None, Dict[str, _JSONType_3], List[_JSONType_3]]
+JSONObject = Dict[str, _JSONType_3]
+JSONType = Union[str, int, float, bool, None, JSONObject, List[JSONObject]]
+
+
+def json_dump_nicely(x: JSONType, *args, **kwargs):
+    json.dump(x, *args, indent=4, sort_keys=True, **kwargs)

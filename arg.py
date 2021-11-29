@@ -41,7 +41,7 @@ class Force_Annotation:
         for vn, v in self.__class__.__dict__.items():
             if vn.startswith('__'):
                 continue
-            if inspect.isfunction(v):
+            if inspect.isfunction(v) or inspect.isdatadescriptor(v):
                 continue
             assert vn in self.__annotations__, f"All variables in {self.__class__} must be annotated, {vn} was not!"
 

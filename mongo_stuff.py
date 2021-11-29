@@ -4,19 +4,97 @@ import os
 import time
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
+from enum import Enum
 from itertools import chain
-from typing import List, Tuple, Dict, NamedTuple, Optional
+from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping
 
 import matplotlib.cm as cm
 import numpy as np
+import pytest
 from bson import ObjectId
 from pymongo import DESCENDING, MongoClient
 from pymongo.collection import Collection, ReturnDocument
 from pymongo.database import Database
 from tqdm import tqdm
 
+from lib.JSON_typing_annotations import JSONObject
 from lib.code_perf_timer import Context_Timer
+from lib.objwalk import string_types
 from lib.stuff import color_print_warning, color_print_okblue
+from bson import Int64
+
+
+from collections import Mapping, Set, Sequence
+
+
+class Safe_Formats(Enum):
+    BSON = "BSON"
+    JSON = "JSON"
+
+
+def make_value_safe(val, fmt: Safe_Formats = Safe_Formats.BSON) -> object:
+    """Makes value safe for use in BSON (mongo) or JSON"""
+    if fmt == Safe_Formats.BSON:
+        if isinstance(val, np.generic):
+            val = val.item()
+
+        if isinstance(val, int):
+            if abs(val) > 2**31:
+                return Int64(val)
+            else:
+                return int(val)
+        return val
+    elif fmt == Safe_Formats.JSON:
+        if isinstance(val, np.generic):
+            return val.item()
+        return val
+
+
+def make_data_safe(kw: JSONObject, fmt: Safe_Formats = Safe_Formats.BSON) -> JSONObject:
+    """Makes container (dict,list,set) safe for use in BSON (mongo) or JSON, operates in place where possible"""
+
+    for k, v in list(kw.items()):
+        # dive into mapping data types
+        if isinstance(v, MutableMapping):
+            # noinspection PyTypeChecker
+            make_data_safe(v, fmt)
+            continue
+        elif isinstance(v, Mapping):
+            # force immutable mappings to become mutable
+            kw[k] = make_data_safe(dict(v), fmt)
+            continue
+        # destructure numpy arrays as lists
+        if isinstance(v, np.ndarray):
+            v = v.tolist()
+
+        # convert sequences into native types (unless they are strings)
+        if isinstance(v, (Sequence, Set)) and not isinstance(v, string_types):
+            typ = type(v)
+            kw[k] = typ([make_value_safe(i, fmt) for i in v])
+        else:
+            kw[k] = make_value_safe(v, fmt)
+
+    return kw
+
+
+@pytest.fixture
+def unsafe_document():
+    return {"a": np.full([3, 3], 5, dtype=float),
+            "b": "some string", "c": np.zeros(1, dtype=np.int64)[0], "d": 2 ** 54}
+
+
+def test_make_json_safe(unsafe_document):
+    make_data_safe(unsafe_document, fmt=Safe_Formats.JSON)
+    assert len(unsafe_document['a']) == 3, "Numpy array should have been serialized"
+    assert type(unsafe_document['c']) == int, "JSON does not support numpy int"
+    assert unsafe_document['b'] == "some string", "Strings should not get touched"
+
+
+def test_make_bson_safe(unsafe_document):
+    make_data_safe(unsafe_document, fmt=Safe_Formats.BSON)
+    assert len(unsafe_document['a']) == 3, "Numpy array should have been serialized"
+    assert unsafe_document['b'] == "some string", "Strings should not get touched"
+    assert type(unsafe_document['d']) == Int64, "BSON does not support bigint"
 
 
 def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem",
