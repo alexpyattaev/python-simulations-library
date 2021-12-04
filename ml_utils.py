@@ -376,7 +376,22 @@ class Test_ml_utils(unittest.TestCase):
         plt.show(block=True)
 
 
+def bits_to_int(arr):
+    """
+    Converts bit arrays into integer arrays (better version of packbits, essentially)
+
+    :param arr: array to convert. Last dimension is converted, others preserved. Should only contain 0 and 1 elements.
+    :return: converted array of integers.
+    >>> bits_to_int(np.array([[0,0],[0,1],[1,0],[1,1]]))
+        array([0, 1, 2, 3])
+
+    """
+    return arr.dot(1 << np.arange(arr.shape[-1] - 1, -1, -1))
+
+
 if __name__ == '__main__':
     unittest.main()
     import doctest
     doctest.testmod()
+
+

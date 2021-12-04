@@ -42,7 +42,7 @@ class Stateful_Linear_Filter:
             return x[0]
 
     def __float__(self):
-        return self._last
+        return float(self._last)
 
 
 def ZOH_filter(data, actual_times, desired_times):
