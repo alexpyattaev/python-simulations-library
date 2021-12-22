@@ -1,9 +1,10 @@
 __author__ = 'Yaniv Aknin'
 
 
-from collections import Mapping, Set, Sequence
+from typing import Mapping, Set, Sequence
 
 string_types = (str, bytes)
+
 iteritems = lambda mapping: getattr(mapping, 'iteritems', mapping.items)()
 
 

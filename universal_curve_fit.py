@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from typing import Iterable
+import bezier
 
 __author__ = "Henrik Talarmo"
 

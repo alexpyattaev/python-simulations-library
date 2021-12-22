@@ -6,7 +6,7 @@ from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
 from enum import Enum
 from itertools import chain
-from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping
+from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping,Mapping, Set, Sequence
 
 import matplotlib.cm as cm
 import numpy as np
@@ -24,7 +24,7 @@ from lib.stuff import color_print_warning, color_print_okblue
 from bson import Int64
 
 
-from collections import Mapping, Set, Sequence
+
 
 
 class Safe_Formats(Enum):
