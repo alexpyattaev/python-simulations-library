@@ -45,13 +45,17 @@ def test_get_confidence():
     v, c = get_confidence(arr, confidence=0)
     assert c == 0.0
 
-    with pytest.raises(ValueError):
-        get_confidence([], confidence=0.95)
-
     with pytest.raises(ArithmeticError):
         get_confidence(arr, confidence=2.0)
 
     with pytest.raises(ArithmeticError):
         get_confidence(arr, confidence=-1)
 
+
+def test_get_confidence_NAN_treatment():
+    arr = np.random.uniform(5, 10, 10000)
+    arr[700] = NaN
+    v, c = get_confidence(arr)
+    assert 7.4 < v < 7.6
+    assert c < 0.1
 
