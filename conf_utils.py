@@ -5,7 +5,7 @@ import datetime
 import itertools
 from functools import reduce
 from operator import mul
-from typing import Iterable, List
+from typing import Iterable, List, Union
 
 from pymongo.collection import Collection
 
@@ -51,7 +51,7 @@ class Experiment(object):
     {"type":"EXPERIMENT", "tag":tag, "time":current time}
     """
 
-    def __init__(self, params: dict, seeds: list, storage: Collection = "point_{idx}", tag: str = ""):
+    def __init__(self, params: dict, seeds: list, storage: Union[Collection, str], tag: str = ""):
         """
         :param params: Parameters for trial {key:array of values}
         :param seeds: Random trial integer seed list (used for Monte-Carlo analysis)
@@ -72,8 +72,7 @@ class Experiment(object):
             res = storage.insert_one(document)
             self.db_id = res.inserted_id
         elif isinstance(storage, str):
-            if not ('{idx}' in storage):
-                raise ValueError(f'Storage file must be a template with {{idx}} field, found {storage}')
+            assert storage.count("{}") == 1, "Should have exactly one format field for point index!"
         else:
             raise TypeError('Storage must be a database collection or a filename prefix')
 
@@ -97,9 +96,8 @@ class Experiment(object):
 
         sweep_params = {k: v for k, v in self.params.items() if not isinstance(v, str) and isinstance(v, Iterable)}
         fix_params = {k: v for k, v in self.params.items() if k not in sweep_params}
-        sweep_keys, sweep_values = list(zip(*list(sweep_params.items())))
-
-        if sweep_keys:
+        if sweep_params:
+            sweep_keys, sweep_values = list(zip(*list(sweep_params.items())))
             # Keep index for text file export (Matlab)
             trial_idx = 0
             # Construct all possible combinations of parameter values
@@ -116,7 +114,7 @@ class Experiment(object):
                     if isinstance(self.storage, Collection):
                         yield Trial(self, p, s, self.storage)
                     else:
-                        yield Trial(self, p, s, self.storage.format(idx=trial_idx))
+                        yield Trial(self, p, s, self.storage.format(trial_idx))
 
         else:
             trial_idx = 0
@@ -127,7 +125,7 @@ class Experiment(object):
                 if isinstance(self.storage, Collection):
                     yield Trial(self, fix_params, s, self.storage)
                 else:
-                    yield Trial(self, fix_params, s, self.storage.format(idx=trial_idx))
+                    yield Trial(self, fix_params, s, self.storage.format(trial_idx))
 
     def __len__(self):
         def ll(v):
@@ -151,7 +149,7 @@ class Trial(object):
     {"type":"TRIAL", "tag":tag, "seed":seed, "link":experiment}
     """
 
-    def __init__(self, experiment: Experiment, params: dict, seed: int, storage: Collection):
+    def __init__(self, experiment: Experiment, params: dict, seed: int, storage: Union[Collection, str]):
         """
         :param  experiment: the database ID of the experiment this trial belongs to
         :param  params: Parameters for trial {key:value}
