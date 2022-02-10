@@ -2,8 +2,11 @@ import unittest
 from typing import Tuple, Iterable, Union
 
 import numpy as np
+import scipy.signal
 from scipy import signal
 from scipy.special._ufuncs import expit
+
+from lib.numba_opt import njit, double , int64
 
 
 class Stateful_Linear_Filter:
@@ -279,3 +282,59 @@ class TestLinearFilters(unittest.TestCase):
         plt.figure()
         plt.plot(x, y, '*')
         plt.plot(x, (x - x.max(initial=-10000) / 2) * a + c, '-', label='linear')
+
+
+#@njit((double[:], int64), nopython=True, nogil=True)
+def ewma(arr_in, window):
+    r"""Exponentialy weighted moving average specified by a decay ``window``
+    to provide better adjustments for small windows via:
+
+        y[t] = (x[t] + (1-a)*x[t-1] + (1-a)^2*x[t-2] + ... + (1-a)^n*x[t-n]) /
+               (1 + (1-a) + (1-a)^2 + ... + (1-a)^n).
+
+    Parameters
+    ----------
+    arr_in : np.ndarray, float64
+        A single dimenisional numpy array
+    window : int64
+        The decay window, or 'span'
+
+    Returns
+    -------
+    np.ndarray
+        The EWMA vector, same length / shape as ``arr_in``
+
+    True
+    """
+    n = arr_in.shape[0]
+    _ewma = np.empty(n, dtype=double)
+    alpha = 2 / float(window + 1)
+    w = 1
+    _ewma_old = arr_in[0]
+    _ewma[0] = _ewma_old
+    for i in range(1, n):
+        w += (1-alpha)**i
+        _ewma_old = _ewma_old*(1-alpha) + arr_in[i]
+        _ewma[i] = _ewma_old / w
+    return _ewma
+
+
+
+def test_ewm():
+    import matplotlib.pyplot as plt
+    W = 5
+    alpha = 2
+
+    b = [alpha/W]
+    a = [1, -(1-alpha/W)]
+
+    t = np.linspace(0, 6*np.pi, 500)
+    data = np.sin(t) + np.random.randn(len(t))
+    r1 = ewma(data, W)
+    r2 = scipy.signal.lfilter(b, a, data)
+    plt.figure()
+    plt.plot(t, data, label="raw")
+    plt.plot(t, r1, label="ewma")
+    plt.plot(t, r2, label="lfilter")
+    plt.legend()
+    plt.show()
