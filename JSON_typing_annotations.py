@@ -9,7 +9,7 @@ JSONObject = Dict[str, _JSONType_3]
 JSONType = Union[str, int, float, bool, None, JSONObject, List[JSONObject]]
 
 
-def json_dump_nicely(x: JSONType, file: TextIO, *args, **kwargs):
+def json_dump_nicely(x: JSONType, file, *args, **kwargs):
     for chunk in json.JSONEncoder(*args, indent=4, sort_keys=True, **kwargs).iterencode(x):
         file.write(chunk)
 
