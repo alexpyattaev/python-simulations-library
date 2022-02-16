@@ -225,7 +225,7 @@ def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
     return style_fn
 
 
-def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None) -> Optional[dict]:
+def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> Optional[dict]:
     """
     Find latest experiment with given tag in given collection
     :param collection: collection to search
@@ -240,13 +240,15 @@ def find_last_experiment(collection: Collection, tag: str, only_completed: True,
         sk['time_completed'] = {"$exists": True, "$ne":None}
     if label:
         sk['label'] = label
-    print(sk)
+
     try:
         exp = collection.find(sk).sort("time", DESCENDING)[0]
     except IndexError:
-        print(f"Could not find anything for search key {sk}")
+        if not quiet:
+            print(f"Could not find anything for search key {sk}")
         return None
-    print("Experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
+    if not quiet:
+        print("Experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
     return exp
 
 
@@ -441,7 +443,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
     Make a nice arrangement of data for plotting via aggregate pipeline
     :param coll: the temporary collection that holds your records
     :param match_rule: a mongodb match filter listing specific values to be found
-    :param group_params: parameters used for grouping of results, e.g. if you like to make a family of plots
+    :param group_params: parameters used for grouping of results to make a family of plots. Empty group means one curve.
     :param field: the field with data values (y axis). All values will be pushed into one huge array.
     :param sweep: the field across which you want to sweep (x axis)
     :param sort_dir: sorting direction for sweep
@@ -466,9 +468,10 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
             "DATA": {"$push": {f"{sweep}": f"$_id.{sweep}", "FIELD": "$items"}}
         }
     }
-
-    sort2 = {"$sort": {f"_id.{n}": 1 for n in group_params}}
-    pipeline = [matchkey, group1, sort1, group2, sort2]
+    pipeline = [matchkey, group1, sort1, group2]
+    if group_params:
+        sort2 = {"$sort": {f"_id.{n}": 1 for n in group_params}}
+        pipeline.append(sort2)
 
     if not quiet:
         color_print_okblue("Will run aggregate:[" + ',\n'.join([str(i) for i in pipeline]) + "]")
@@ -493,9 +496,95 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
                     color_print_warning(f'No data points found for {rec["_id"]}')
                 break
             x_vals.append(l[sweep])
-            y_vals.append(np.concatenate(l["FIELD"]))
+            fdata = l["FIELD"]
+            try:
+                y_vals.append(np.concatenate(fdata)) # original data was a list
+            except ValueError:
+                y_vals.append(fdata) # original data was a point
         else:
             if not quiet:
                 print(f"x:{x_vals}, y:{y_vals}")
             curves[key] = (x_vals, y_vals)
     return curves
+
+
+def get_progress(collection, tag):
+    exp = find_last_experiment(collection, tag=tag, only_completed=False, quiet=True)
+
+    if exp is None:
+        raise FileNotFoundError()
+
+    trials = collection.find({"link": exp['_id']}).sort("params", DESCENDING)
+    done = 0
+    total = 0
+    failed = 0
+    for t in trials:
+        sys_data = collection.find_one({"type": "SYS", "link": t['_id']}, ['termination_condition','termination_condition_code'])
+        total += 1
+        if sys_data is not None:
+            if sys_data['termination_condition_code'] > 0:
+                done += 1
+            else:
+                failed += 1
+
+    return total, done, failed
+
+
+def watch_progress(collection, tag, refresh_sec=5.0) -> None:
+    """Watch progress dynamically
+    :param collection: collection to pull data from
+    :param tag: experiment tag
+    :param refresh_sec: refresh rate
+    :return None once the runner finishes its work and results are safe to process.
+    """
+    total, done, failed = get_progress(collection, tag)
+    print(f"Done {done}/{total} ({done / total * 100}%)")
+    marked = done + failed
+
+    with tqdm(initial=marked, total=total, desc="Done", unit="trial",mininterval=0,miniters=1) as tq:
+        try:
+            while marked < total:
+                while marked < (done + failed):
+                    marked += 1
+                    tq.update()
+                time.sleep(refresh_sec)
+                total, done, failed = get_progress(collection, tag)
+        except KeyboardInterrupt:
+            return
+
+
+
+@dataclass
+class Histogram_Data:
+    """
+    Stores histogram data after pulled from database for quick plotting. Also supports scaling bounds correctly.
+    """
+    bin: float
+    hi: float
+    lo: float
+    toobig: int
+    toosmall: int
+    vals: np.ndarray
+
+    @property
+    def X_axis(self):
+        return np.linspace(self.lo, self.hi - self.bin, len(self.vals))
+
+    def __iadd__(self, other):
+        assert isinstance(other, Histogram_Data)
+        for n in ["bin", "hi", "lo"]:
+            assert np.isclose(getattr(self, n), getattr(other, n)), f"Incompatible value for {n}"
+
+        for n in ["toobig", "toosmall", "vals"]:
+            setattr(self, n, getattr(self, n) + getattr(other, n))
+        return self
+
+    def __post_init__(self):
+        if not isinstance(self.vals, np.ndarray):
+            self.vals = np.array(self.vals)
+
+    def scale(self, scale=1.0):
+        self.lo *= scale
+        self.hi *= scale
+        self.bin *= scale
+        return self

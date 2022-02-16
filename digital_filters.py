@@ -6,22 +6,29 @@ import scipy.signal
 from scipy import signal
 from scipy.special._ufuncs import expit
 
-from lib.numba_opt import njit, double , int64
+from lib.numba_opt import njit, double, int64
+
+
+def lfilter_initial_conditions(b, a, init: float):
+    return signal.lfiltic(b, a, y=np.ones_like(a), x=np.ones_like(b))* init
 
 
 class Stateful_Linear_Filter:
     """A linear filter wrapper for Numpy suitable to process samples one at a time.
     Closely mimics how a real signal processor would work with the data (i.e. not as array but as sequence of floats).
     """
+    _state = None
+    _last = np.NaN
 
-    def __init__(self, b: np.ndarray, a: np.ndarray):
+    def __init__(self, b: np.ndarray, a: np.ndarray, init=None):
         """
         Initialize with output of filter design (b and a arrays)
+        :param init: defines initial state of the filter. None (default) means compute state once first item is fed.
         """
         self.b = b
         self.a = a
-        self._state = signal.lfilter_zi(self.b, self.a)
-        self._last = np.NaN
+        if init is not None:
+            self._state = lfilter_initial_conditions(b, a, init)
 
     def __call__(self, x: Union[float, Iterable]) -> Union[float, Iterable]:
         """
@@ -30,12 +37,15 @@ class Stateful_Linear_Filter:
         :return: current output of the filter
         """
         if isinstance(x, float) or isinstance(x, int):
-            x = (x,)
+            x = np.array((x,), dtype=float)
             return_array = False
         else:
+            x = np.array(x, dtype=float)
             return_array = True
 
-        x, self._state = signal.lfilter(self.b, self.a, np.array(x), zi=self._state)
+        if self._state is None:
+            self._state = lfilter_initial_conditions(self.b, self.a, x[0])
+        x, self._state = signal.lfilter(self.b, self.a, x, zi=self._state)
 
         if return_array:
             self._last = x[-1]
@@ -46,6 +56,23 @@ class Stateful_Linear_Filter:
 
     def __float__(self):
         return float(self._last)
+
+
+def test_stateful_linear_filter():
+    import matplotlib.pyplot as plt
+    b, a = signal.butter(10, 0.1)
+    lf = Stateful_Linear_Filter(b, a)
+    data = np.random.randn(500) + np.sin(np.linspace(0,10, 500))
+    res = np.zeros_like(data)
+    for i, x in enumerate(data):
+        res[i] = lf(x)
+    trues = signal.lfilter(b,a, data)
+    plt.figure()
+    plt.plot(data, label ="raw")
+    plt.plot(res, label="stateful filter")
+    plt.plot(trues, label="scipy.signal.lfilter")
+    plt.legend()
+    plt.show()
 
 
 def ZOH_filter(data, actual_times, desired_times):

@@ -1,7 +1,7 @@
 import os
 import pickle
 from itertools import repeat, zip_longest
-from typing import List, Union, Callable, Tuple, Iterable, Dict
+from typing import List, Union, Callable, Tuple, Iterable, Dict, Iterator
 
 import matplotlib as mpl
 import matplotlib.cm as cm
@@ -182,6 +182,18 @@ def cdfplot(data: np.ndarray, yrange: float = 1.0):
     L = X.shape[0]
     Y = np.linspace(yrange / L, yrange, L)
     return X, Y
+
+
+def pdf_to_cdf_data(X, counts) -> Iterator:
+    """
+    convert pdf (histogram data) to CDF inputs
+    :param X: X positions in histogram
+    :param counts: counts in histogram
+    :return: iterator over values (same dtype as stuff in X)
+    """
+    for x, c in zip(X, counts):
+        for i in range(c):
+            yield x
 
 
 def pdfplot(data: np.ndarray, final_samples: int = 100, Q: int = 6):
