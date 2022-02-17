@@ -547,6 +547,8 @@ def watch_progress(collection, tag, refresh_sec=5.0) -> None:
                 while marked < (done + failed):
                     marked += 1
                     tq.update()
+                    tq.set_postfix({"done": done, "failed": failed})
+                    tq.refresh()
                 time.sleep(refresh_sec)
                 total, done, failed = get_progress(collection, tag)
         except KeyboardInterrupt:
