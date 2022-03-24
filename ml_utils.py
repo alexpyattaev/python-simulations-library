@@ -6,6 +6,7 @@ import os
 import unittest
 from typing import Union, Iterable, Tuple, List, Dict
 
+import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -78,7 +79,7 @@ class TF_Imbalance_Abort_Callback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        self.completed_epochs +=1
+        self.completed_epochs += 1
         vals = [logs.get(m) for m in self.monitor]
         if any(map(lambda a: a is None, vals)):
             print(f'ImbalanceAbort conditioned on metrics {self.monitor} which are not available.'
@@ -96,7 +97,6 @@ class TF_Imbalance_Abort_Callback(Callback):
                 print(f"Performance imbalance detected, wait {self.patience - self.wait} epochs before abort")
         else:
             self.wait = 0
-
 
 
 class TF_Reset_States_Callback(Callback):
@@ -181,7 +181,7 @@ def calc_output_bias(all_labels, num_cat) -> Tuple[np.ndarray, np.ndarray]:
     return initial_bias, class_weights
 
 
-def plot_history(name, history: List[Dict[str, np.ndarray]], keys=None, ax = None):
+def plot_history(name, history: List[Dict[str, np.ndarray]], keys=None, ax=None):
     if ax is None:
         f = plt.figure(figsize=(16, 10))
         ax
@@ -201,7 +201,7 @@ def plot_history(name, history: List[Dict[str, np.ndarray]], keys=None, ax = Non
     plt.xlabel('Training epochs')
     plt.legend()
 
-    #plt.xlim([0, max(epoch)])
+    # plt.xlim([0, max(epoch)])
     return f
 
 
@@ -234,28 +234,43 @@ def plot_CNN_layers(model):
     return figs
 
 
-def plot_CLR_stats(h: dict, LR_bounds: list = None, ax=None):
+def plot_CLR_stats(h: dict, LR_bounds: list = None, ax: Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes] = None,
+                   lr_color="red", loss_color="blue", lr_label: str = "learning rate", loss_label: str = "loss"):
     """
     Plots the learning stats from CLR scheduler.
+
+
     :param h: pointer to the CLR history
     :param LR_bounds: Learning rate bounds (for ylimit)
-    :param ax: axes to plot on (will spawn new fig if None given)
+    :param ax: tuple of axes to plot on (will spawn new fig if None given)
     :return: the spawned figure (or None if ax was given)
+    :param lr_color: color for learning rate curve
+    :param lr_label: label for  learning rate curve
+    :param loss_color: color for loss curve
+    :param loss_label: label for loss curve
+    :return figure(None if axes were provided), axes for LR, axes for loss.
     """
     # print(list(h.keys()))
     if ax is None:
         f, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
     else:
         f = None
-        ax1 = ax
-    ax1.plot(h['lr'], color='red', label='learning rate')
-    ax1.set_ylabel('learning rate', color='red')
+        try:
+            ax1, ax2 = ax
+        except:
+            ax1 = ax
+            ax2 = ax1.twinx()
+
+    ax1.plot(h['lr'], color=lr_color, label=lr_label)
+    ax1.set_ylabel('learning rate', color="red")
     if LR_bounds is not None:
-        ax1.set_ylim(LR_bounds)
-    ax2 = ax1.twinx()
-    ax2.plot(h['loss'], color='blue', label='loss')
-    ax2.set_ylabel('loss', color='blue')
-    return f
+        ax1.set_ylim(*LR_bounds)
+    ax2.plot(h['loss'], color=loss_color, label=loss_label)
+    ax2.set_ylabel('loss', color="blue")
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    return f, ax1, ax2
 
 
 def stateful_LSTM_batch_reordering(samples_per_sequence: List[int], batch_size: int,
@@ -392,6 +407,5 @@ def bits_to_int(arr):
 if __name__ == '__main__':
     unittest.main()
     import doctest
+
     doctest.testmod()
-
-
