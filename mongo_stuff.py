@@ -224,6 +224,26 @@ def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
 
     return style_fn
 
+def find_experiments(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> List[dict]:
+    """
+        Find all experiments with given tag in given collection
+        :param collection: collection to search
+        :param tag: experiment tag
+        :param only_completed: only return experiments which successfully finished (default=True)
+        :param label: only return experiments with given label (see experiment_label)
+        :return: experiment object
+        """
+    sk = {"type": "EXPERIMENT", 'tag': tag}
+    if only_completed:
+        sk['time_completed'] = {"$exists": True, "$ne": None}
+    if label:
+        sk['label'] = label
+
+    exps = list(collection.find(sk).sort("time", DESCENDING))
+    if not exps and not quiet:
+        print(f"Could not find anything for search key {sk}")
+    return exps
+
 
 def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> Optional[dict]:
     """
@@ -235,17 +255,9 @@ def find_last_experiment(collection: Collection, tag: str, only_completed: True,
     :return: experiment object
     """
 
-    sk = {"type": "EXPERIMENT", 'tag': tag}
-    if only_completed:
-        sk['time_completed'] = {"$exists": True, "$ne":None}
-    if label:
-        sk['label'] = label
-
     try:
-        exp = collection.find(sk).sort("time", DESCENDING)[0]
+        exp = find_experiments(collection, tag, only_completed, label, quiet)[0]
     except IndexError:
-        if not quiet:
-            print(f"Could not find anything for search key {sk}")
         return None
     if not quiet:
         print("Experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
