@@ -169,6 +169,8 @@ class Random_Gamma(RandomVar):
         #
         # ... and then from (1):
         # k = mean / theta
+        if mean==0:
+            raise ValueError("Gamma distribution can not have zero mean")
         RandomVar.__init__(self, seed)
         self._mean = mean
         self._stdev = stdev
