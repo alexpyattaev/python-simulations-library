@@ -116,8 +116,8 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
             raise
         db_server, collection = default_db.rsplit('/', maxsplit=1)
     else:
-        db_server = db_server_path
-        collection = ""
+        db_server, collection = db_server_path.rsplit('/', maxsplit=1)
+
     tls_insecure = False
     if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
         print("Hacker mode activated, ignoring mongodb SSL certificate errors.")
