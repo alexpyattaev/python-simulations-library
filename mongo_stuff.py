@@ -117,6 +117,7 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
         db_server, collection = default_db.rsplit('/', maxsplit=1)
     else:
         db_server = db_server_path
+        collection = ""
     tls_insecure = False
     if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
         print("Hacker mode activated, ignoring mongodb SSL certificate errors.")
@@ -124,14 +125,14 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
 
     authfile = open('authfile.txt')
     login, password = authfile.readline().strip('\n').split()
-
-    print("Using credentials: {}:{}".format(login, password))
+    print(f"Connecting to mongodb server {db_server}")
+    print(f"Using credentials: {login}:{password}, collection '{collection}'")
 
     client = MongoClient(host=db_server, ssl=True, tlsCAFile=os.path.abspath(server_crt), authSource=login,
                          username=login, password=password,
                          tlsCertificateKeyFile=os.path.abspath(client_pem), tlsInsecure=tls_insecure)
 
-    return client[login]
+    return client[login] if not collection else client[login][collection]
 
 
 def ensure_indices(collection: Collection, drop_current=False, index_base_name="SLS_experiment_idx"):
