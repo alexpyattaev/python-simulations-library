@@ -8,7 +8,6 @@ from enum import Enum
 from itertools import chain
 from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping,Mapping, Set, Sequence
 
-import matplotlib.cm as cm
 import numpy as np
 import pytest
 from bson import ObjectId
@@ -198,6 +197,7 @@ def recursive_clean(collection: Collection, obj, pointer_name='link') -> int:
 
 
 def mongo_make_colors(coll, key, cmap=None):
+    import matplotlib.cm as cm
     all_ = coll.distinct(key)
     all_.sort()
     if cmap is None:
