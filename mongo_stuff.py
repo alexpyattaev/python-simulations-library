@@ -102,7 +102,7 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
     Connect to typical results collection.
     If db_server_path is unspecified will load from default_db_file.txt
 
-    :param db_server_path: The server URL to use, e.g. 'mongodb://simhost.winter.rd.tut.fi:27017'.
+    :param db_server_path: The server URL to use, e.g. 'mongodb://simhost.winter.rd.tut.fi:27017/collection'.
     :param client_pem: client certificate path
     :param server_crt: server certificate path
     :return: Database object or raises exception
