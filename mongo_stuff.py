@@ -6,7 +6,7 @@ from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, asdict, replace
 from enum import Enum
 from itertools import chain
-from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping,Mapping, Set, Sequence
+from typing import List, Tuple, Dict, NamedTuple, Optional, MutableMapping, Mapping, Set, Sequence
 
 import numpy as np
 import pytest
@@ -23,9 +23,6 @@ from lib.stuff import color_print_warning, color_print_okblue
 from bson import Int64
 
 
-
-
-
 class Safe_Formats(Enum):
     BSON = "BSON"
     JSON = "JSON"
@@ -38,7 +35,7 @@ def make_value_safe(val, fmt: Safe_Formats = Safe_Formats.BSON) -> object:
             val = val.item()
 
         if isinstance(val, int):
-            if abs(val) > 2**31:
+            if abs(val) > 2 ** 31:
                 return Int64(val)
             else:
                 return int(val)
@@ -227,6 +224,7 @@ def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
 
     return style_fn
 
+
 def find_experiments(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> List[dict]:
     """
         Find all experiments with given tag in given collection
@@ -234,6 +232,7 @@ def find_experiments(collection: Collection, tag: str, only_completed: True, lab
         :param tag: experiment tag
         :param only_completed: only return experiments which successfully finished (default=True)
         :param label: only return experiments with given label (see experiment_label)
+        :param quiet: do not print info messages
         :return: experiment object
         """
     sk = {"type": "EXPERIMENT", 'tag': tag}
@@ -241,7 +240,7 @@ def find_experiments(collection: Collection, tag: str, only_completed: True, lab
         sk['time_completed'] = {"$exists": True, "$ne": None}
     if label:
         sk['label'] = label
-
+    print(sk)
     exps = list(collection.find(sk).sort("time", DESCENDING))
     if not exps and not quiet:
         print(f"Could not find anything for search key {sk}")
@@ -513,9 +512,9 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
             x_vals.append(l[sweep])
             fdata = l["FIELD"]
             try:
-                y_vals.append(np.concatenate(fdata)) # original data was a list
+                y_vals.append(np.concatenate(fdata))  # original data was a list
             except ValueError:
-                y_vals.append(fdata) # original data was a point
+                y_vals.append(fdata)  # original data was a point
         else:
             if not quiet:
                 print(f"x:{x_vals}, y:{y_vals}")
@@ -534,7 +533,7 @@ def get_progress(collection, tag):
     total = 0
     failed = 0
     for t in trials:
-        sys_data = collection.find_one({"type": "SYS", "link": t['_id']}, ['termination_condition','termination_condition_code'])
+        sys_data = collection.find_one({"type": "SYS", "link": t['_id']}, ['termination_condition', 'termination_condition_code'])
         total += 1
         if sys_data is not None:
             if sys_data['termination_condition_code'] > 0:
@@ -556,7 +555,7 @@ def watch_progress(collection, tag, refresh_sec=5.0) -> None:
     print(f"Done {done}/{total} ({done / total * 100}%)")
     marked = done + failed
 
-    with tqdm(initial=marked, total=total, desc="Done", unit="trial",mininterval=0,miniters=1) as tq:
+    with tqdm(initial=marked, total=total, desc="Done", unit="trial", mininterval=0, miniters=1) as tq:
         try:
             while marked < total:
                 while marked < (done + failed):
@@ -568,7 +567,6 @@ def watch_progress(collection, tag, refresh_sec=5.0) -> None:
                 total, done, failed = get_progress(collection, tag)
         except KeyboardInterrupt:
             return
-
 
 
 @dataclass
