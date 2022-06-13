@@ -113,7 +113,14 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
             raise
         db_server, collection = default_db.rsplit('/', maxsplit=1)
     else:
-        db_server, collection = db_server_path.rsplit('/', maxsplit=1)
+        proto, server_url = db_server_path.split("//")
+        try:
+            db_server, collection = server_url.rsplit('/', maxsplit=1)
+        except:
+            db_server = server_url
+            collection = ""
+
+        db_server = proto + "//" +db_server
 
     tls_insecure = False
     if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
