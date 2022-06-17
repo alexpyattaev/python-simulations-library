@@ -170,9 +170,12 @@ def experiment_label(coll: Collection, exp: dict, new_label: str = None) -> Opti
     """
     if new_label is not None:
         if new_label != "":
+            print("Adding label {new_label} to experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(
+                new_label=new_label, **exp))
             coll.update_one(filter={'_id': exp['_id']},
                             update={'$set': {'label': new_label}})
         else:
+            print("Popping label from experiment '{tag}':{_id} taken at {time:%d %b %Y %H:%M:%S}".format(**exp))
             coll.update_one(filter={'_id': exp['_id']},
                             update={'$unset': 'label'})
     try:
