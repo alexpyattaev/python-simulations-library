@@ -1,4 +1,5 @@
 import hashlib
+import itertools
 import json
 import os
 import time
@@ -120,7 +121,7 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
             db_server = server_url
             collection = ""
 
-        db_server = proto + "//" +db_server
+        db_server = proto + "//" + db_server
 
     tls_insecure = False
     if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
@@ -204,21 +205,32 @@ def recursive_clean(collection: Collection, obj, pointer_name='link') -> int:
     return c
 
 
-def mongo_make_colors(coll, key, cmap=None):
+def mongo_make_colors(coll, key: str, categories: str = None, cmap=None):
     import matplotlib.cm as cm
-    all_ = coll.distinct(key)
-    all_.sort()
+
     if cmap is None:
-        if len(all_) < 5:
-            cmap = cm.brg
-        else:
-            # noinspection PyUnresolvedReferences
-            cmap = cm.viridis
+        cmap = cm.viridis
 
-    COLORS = [cmap(i) for i in np.linspace(0, 1, len(all_))]
+    COLORS = {}
 
-    def colors_fn(q):
-        return COLORS[all_.index(q)]
+    all_keys = coll.distinct(key)
+    all_keys.sort()
+    if categories is not None:
+
+        all_categories = coll.distinct(categories)
+        all_categories.sort()
+        ranges1 = np.linspace(0, 1, len(all_categories), endpoint=False)
+        ranges2 = np.linspace(ranges1[1], 1, len(all_categories), endpoint=True) - ranges1[1]/len(all_keys)
+
+        for i, cat in enumerate(all_categories):
+            for j, v in enumerate(np.linspace(ranges1[i], ranges2[i], len(all_keys), endpoint=True)):
+                COLORS[(cat, all_keys[j])] = cmap(v)
+    else:
+        for j, v in enumerate(np.linspace(0, 1, len(all_keys))):
+            COLORS[(all_keys[j], )] = cmap(v)
+
+    def colors_fn(*q):
+        return COLORS[q]
 
     return colors_fn
 
@@ -250,12 +262,19 @@ def find_experiments(collection: Collection, tag: str, only_completed: True, lab
         sk['time_completed'] = {"$exists": True, "$ne": None}
     if label:
         sk['label'] = label
-    print(sk)
+    if not quiet:
+        print("Search key is ", sk)
     exps = list(collection.find(sk).sort("time", DESCENDING))
     if not exps and not quiet:
         print(f"Could not find anything for search key {sk}")
     return exps
 
+
+def make_watermark(exp:dict)->str:
+    """Makes a watermark text for a given experiment
+    :param exp: Experiment dict
+    """
+    return "{tag} {time_completed:%d.%m.%y %H:%M} {_id}".format(**exp)
 
 def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> Optional[dict]:
     """

@@ -449,6 +449,15 @@ def axisEqual3D(ax: mpl_toolkits.mplot3d.axes3d.Axes3D):
 default_plot_path = "./plots"  # The place where all plots will be dropped by default
 
 
+def add_watermark(fig: matplotlib.figure.Figure, text: str)->None:
+    """
+    Add a watermark to figure. Such as a version tag.
+    :param fig: figure to modify
+    :param text: watermark text.
+    """
+    fig.text(1.0, 0.0, " "+text, color='gray', alpha=0.5, fontsize=8, ha='right', va='bottom', rotation=90)
+
+
 def savefig(fig: matplotlib.figure.Figure, title: str,
             path: str = default_plot_path,
             img_formats: Iterable[str] = ('svg', 'png'), mplfig=False) -> None:

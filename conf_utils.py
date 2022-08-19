@@ -51,11 +51,12 @@ class Experiment(object):
     {"type":"EXPERIMENT", "tag":tag, "time":current time}
     """
 
-    def __init__(self, params: dict, seeds: list, storage: Union[Collection, str], tag: str = ""):
+    def __init__(self, params: dict, seeds: list, storage: Union[Collection, str], tag: str = "", code_versions=dict):
         """
         :param params: Parameters for trial {key:array of values}
         :param seeds: Random trial integer seed list (used for Monte-Carlo analysis)
         :param storage: the database collection to store data
+        :param code_versions: the versions of relevant repos with code to run experiment
         :param tag: Optional tag to locate the experiment in DB
         """
         self.params = params
@@ -63,11 +64,12 @@ class Experiment(object):
         self.seeds = seeds
         self.db_id = None
         self.storage = storage
+        self.code_versions = code_versions
         unwrap_inner(self.params)
 
         if isinstance(storage, Collection):
             document = {"type": "EXPERIMENT", "tag": self.tag, "time": datetime.datetime.now(),
-                        "time_completed": None}
+                        "time_completed": None, code_versions: code_versions}
 
             res = storage.insert_one(document)
             self.db_id = res.inserted_id

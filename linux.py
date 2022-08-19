@@ -4,6 +4,7 @@
 import itertools
 import mmap
 import os
+import subprocess
 import sys
 import unittest
 import warnings
@@ -181,6 +182,12 @@ class Test_lib_linux(unittest.TestCase):
         import subprocess
         hash2 = subprocess.getoutput(f"md5sum {file}")
         self.assertTrue(hash2.startswith(hash1)) #
+
+
+def get_git_repo_hashes():
+    repo_names = [repo.replace('.git','') for repo in subprocess.getoutput("find -name .git").splitlines()]
+    versions = {n: subprocess.getoutput(f"cd {n}; git rev-parse HEAD") for n in repo_names}
+    return versions
 
 
 if __name__ == '__main__':
