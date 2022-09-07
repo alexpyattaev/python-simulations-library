@@ -69,7 +69,7 @@ class Experiment(object):
 
         if isinstance(storage, Collection):
             document = {"type": "EXPERIMENT", "tag": self.tag, "time": datetime.datetime.now(),
-                        "time_completed": None, code_versions: code_versions}
+                        "time_completed": None, "code_versions": code_versions}
 
             res = storage.insert_one(document)
             self.db_id = res.inserted_id
