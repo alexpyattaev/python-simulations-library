@@ -522,7 +522,7 @@ def organize_results(coll: Collection, match_rule: dict, group_params: List[str]
     records = coll.aggregate(pipeline)
     records = list(records)
     if not records:
-        raise KeyError("No matching data found, check your match rules")
+        raise KeyError(f"No data found for {matchkey}!")
     if not quiet:
         color_print_okblue(f"Got records: {records}")
 
