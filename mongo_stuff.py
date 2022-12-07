@@ -234,8 +234,53 @@ def mongo_make_colors(coll, key: str, categories: str = None, cmap=None):
 
     return colors_fn
 
+LINE_STYLES_COLLECTION= {
+     'solid': (0, ()),
+     'dotted': (0, (1, 1)),
+     'dashed': (0, (5, 1)),
+     'dashdot': 'dashdot',
+     'long dash with offset': (5, (10, 3)),
+     'densely dashdotted':    (0, (3, 1, 1, 1)),
+     'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1)),
+     'dashdotdotted':         (0, (3, 2, 1, 2, 1, 2)),
+     'loosely dashdotted':    (0, (3, 10, 1, 10)),
+     'loosely dotted':        (0, (1, 5)),
+     'dashdotted':            (0, (3, 5, 1, 5)),
+     'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
+}
 
-def mongo_make_linestyles(coll, key, styles=('-', '--', '-.', ':')):
+
+def test_linestyles():
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+
+    X, Y = np.linspace(0, 100, 10), np.zeros(10)
+    yticklabels = []
+
+    for i, (name, linestyle) in enumerate(LINE_STYLES_COLLECTION.items()):
+        ax.plot(X, Y + i, linestyle=linestyle, linewidth=1.5, color='black')
+        yticklabels.append(name)
+
+    ax.set_title("line styles")
+    ax.set(ylim=(-0.5, len(LINE_STYLES_COLLECTION) - 0.5),
+           yticks=np.arange(len(LINE_STYLES_COLLECTION)),
+           yticklabels=yticklabels)
+    ax.tick_params(left=False, bottom=False, labelbottom=False)
+    ax.spines[:].set_visible(False)
+
+    # For each line style, add a text annotation with a small offset from
+    # the reference point (0 in Axes coords, y tick value in Data coords).
+    for i, (name, linestyle) in enumerate(LINE_STYLES_COLLECTION.items()):
+        ax.annotate(repr(linestyle),
+                    xy=(0.0, i), xycoords=ax.get_yaxis_transform(),
+                    xytext=(-6, -12), textcoords='offset points',
+                    color="blue", fontsize=8, ha="right", family="monospace")
+
+    plt.tight_layout()
+    plt.show()
+
+
+def mongo_make_linestyles(coll, key, styles=tuple(LINE_STYLES_COLLECTION.values())):
     all_ = coll.distinct(key)
     all_.sort()
     if len(all_) > len(styles):
