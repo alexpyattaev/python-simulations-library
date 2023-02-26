@@ -95,7 +95,7 @@ def test_make_bson_safe(unsafe_document):
 
 
 def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem",
-                       server_crt='certs/ca.crt') -> Database:
+                       server_crt='certs/ca.crt', login_password=(None, None)) -> Database:
     """
     Connect to typical results collection.
     If db_server_path is unspecified will load from default_db_file.txt
@@ -103,6 +103,7 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
     :param db_server_path: The server URL to use, e.g. 'mongodb://simhost.winter.rd.tut.fi:27017/collection'.
     :param client_pem: client certificate path
     :param server_crt: server certificate path
+    :param login_password: tuple of strings with login and password. if not given authfile.txt is used
     :return: Database object or raises exception
     """
     if db_server_path is None:
@@ -127,9 +128,11 @@ def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem"
     if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
         print("Hacker mode activated, ignoring mongodb SSL certificate errors.")
         tls_insecure = True
-
-    authfile = open('authfile.txt')
-    login, password = authfile.readline().strip('\n').split()
+    if login_password is None:
+        authfile = open('authfile.txt')
+        login, password = authfile.readline().strip('\n').split()
+    else:
+        login, password = login_password
     print(f"Connecting to mongodb server {db_server}")
     print(f"Using credentials: {login}:{password}, collection '{collection}'")
 
