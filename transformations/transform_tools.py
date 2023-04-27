@@ -12,11 +12,11 @@ transform_matrix = np.ndarray
 def is_same_transform(matrix0: transform_matrix, matrix1: transform_matrix, eps=EPS) -> bool:
     """Return True if two matrices perform same transformation.
 
-    >>> is_same_transform(np.identity(4), np.identity(4))
+    >>> is_same_transform(np.ident(4), np.ident(4))
     True
-    >>> z = np.identity(4)
+    >>> z = np.ident(4)
     >>> z[1,2] = 23.0
-    >>> is_same_transform(np.identity(4), z)
+    >>> is_same_transform(np.ident(4), z)
     False
 
     """
@@ -36,7 +36,7 @@ def identity_matrix() -> transform_matrix:
     True
     >>> np.sum(I), np.trace(I)
     (4.0, 4.0)
-    >>> np.allclose(I, np.identity(4))
+    >>> np.allclose(I, np.ident(4))
     True
 
     """

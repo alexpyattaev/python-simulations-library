@@ -318,7 +318,7 @@ def rotation_matrix(angle: float, direction: np.ndarray,
         >>> R1 = rotation_matrix(-angle, -direc, point)
         >>> is_same_transform(R0, R1)
         True
-        >>> I = np.identity(4, np.float64)
+        >>> I = np.ident(4, np.float64)
         >>> np.allclose(I, rotation_matrix(pi*2, direc))
         True
         >>> np.allclose(2, np.trace(rotation_matrix(pi/2,
@@ -481,7 +481,7 @@ def projection_matrix(point: np.ndarray, normal: np.ndarray, direction: np.ndarr
     :param pseudo: ???
     :return: projection matrix 4x4
     >>> P = projection_matrix(vector(0, 0, 0), vector(1, 0, 0))
-    >>> np.allclose(P[1:, 1:], np.identity(4)[1:, 1:])
+    >>> np.allclose(P[1:, 1:], np.ident(4)[1:, 1:])
     True
     >>> point = np.random.random(3) - 0.5
     >>> normal = np.random.random(3) - 0.5
@@ -923,7 +923,7 @@ def orthogonalization_matrix(lengths, angles):
     The de-orthogonalization matrix is the inverse.
 
     >>> O = orthogonalization_matrix([10, 10, 10], [90, 90, 90])
-    >>> np.allclose(O[:3, :3], np.identity(3, float) * 10)
+    >>> np.allclose(O[:3, :3], np.ident(3, float) * 10)
     True
     >>> O = orthogonalization_matrix([9.8, 12.0, 15.5], [87.2, 80.7, 69.7])
     >>> np.allclose(np.sum(O), 43.063229)
@@ -1086,7 +1086,7 @@ def superimposition_matrix(v0, v1, scale=False, usesvd=True):
 
     >>> v0 = np.random.rand(3, 10)
     >>> M = superimposition_matrix(v0, v0)
-    >>> np.allclose(M, np.identity(4))
+    >>> np.allclose(M, np.ident(4))
     True
     >>> R = random_rotation_matrix()
     >>> v0 = [[1,0,0], [0,1,0], [0,0,1], [1,1,1]]
@@ -1133,7 +1133,7 @@ def random_rotation_matrix():
         between 0 and 1 for each returned quaternion.
 
     >>> R = random_rotation_matrix()
-    >>> np.allclose(np.dot(R.T, R), np.identity(4))
+    >>> np.allclose(np.dot(R.T, R), np.ident(4))
     True
 
     >>> R = random_rotation_matrix()
