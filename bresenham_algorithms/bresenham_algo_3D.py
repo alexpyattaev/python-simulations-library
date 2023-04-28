@@ -8,26 +8,26 @@ from lib.bresenham_algorithms.bresenham_algo_2D import Bresenham_circle
 from lib.plots_stuff import axisEqual3D
 
 
-def Bresenham_sphere(x0:int, y0:int, z0:int, radius:int, reflection=True):
+def Bresenham_sphere(x0: int, y0: int, z0: int, radius: int, reflection=True):
     if radius < 3:
         raise ValueError('This does not work well with small radii')
-    #todo = {(z, r) for z,r in Bresenham_circle(0, 0, radius, quarters=((-1, -1),(-1, 1)))}
+    # todo = {(z, r) for z,r in Bresenham_circle(0, 0, radius, quarters=((-1, -1),(-1, 1)))}
     todo = {(z, r) for z, r in Bresenham_circle(0, 0, radius)}
     todo = sorted(todo)
     todo.append((radius, 0))
-    #print(todo)
+    # print(todo)
 
     for z, r in todo:
-        #print(f'3d doing z={z}, r={r}')
+        # print(f'3d doing z={z}, r={r}')
 
-        #for x, y in Bresenham_circle(x0, y0, r, quarters=((-1, -1), (-1, 1))):
+        # for x, y in Bresenham_circle(x0, y0, r, quarters=((-1, -1), (-1, 1))):
         for x, y in Bresenham_circle(x0, y0, r):
             yield (x, y, z0 + z)
-            #yield (x, y, z)
+            # yield (x, y, z)
             # Flag to activate the building of the second part of the sphere
             if reflection is True and z != 0:
-                #yield (x, y, z)
-                yield ( x,  y, z0 - z)
+                # yield (x, y, z)
+                yield (x, y, z0 - z)
 
 
 # Bresenham rays generator
@@ -98,20 +98,13 @@ def Bresenham3D(x1: int, y1: int, z1: int, x2: int, y2: int, z2: int):
             yield x1, y1, z1
 
 
-# print('WTFFF')
-# for p in sphere(10,10,10, 5):
-#     print(p)
-# print('WTFFFF')
-
-
 def test_line():
-
     S = 512
     arr = np.zeros([S, S, S], dtype=bool)
     v1 = np.array([6, 0, 0])
     v2 = np.array([128, 0, 30])
     for p in Bresenham3D(*v1, *v2):
-        arr[p[0],p[1],p[2]] = 1
+        arr[p[0], p[1], p[2]] = 1
 
     import matplotlib.pyplot as plt
     fig = plt.figure()
@@ -123,7 +116,7 @@ def test_line():
     plt.show()
 
 
-def Bresenham_Triangle(v1,v2,v3):
+def Bresenham_Triangle(v1, v2, v3):
     edge1 = []
     edge2 = []
 
@@ -141,7 +134,7 @@ def Bresenham_Triangle(v1,v2,v3):
         L -= lendec
 
 
-def Bresenham_Rectangle(v1,v2,v3):
+def Bresenham_Rectangle(v1, v2, v3):
     edge1 = []
     edge2 = []
 
@@ -163,8 +156,8 @@ def test_triangle():
     v2 = np.array([128, 0, 80])
     v3 = np.array([300, 45, 0])
 
-    for p in Bresenham_Triangle(v1,v2,v3):
-        arr[p[0],p[1],p[2]] = 1
+    for p in Bresenham_Triangle(v1, v2, v3):
+        arr[p[0], p[1], p[2]] = 1
 
     X, Y, Z = filter_pointcloud(arr, BS=8)
     # import matplotlib.pyplot as plt
@@ -178,7 +171,7 @@ def test_triangle():
     # ax.scatter(xs=X, ys=Y, zs=Z, marker=".")
     # axisEqual3D(ax)
     # plt.show()
-    return(len(X))
+    return (len(X))
 
 
 def test_rectangle():
@@ -188,16 +181,17 @@ def test_rectangle():
     v3 = np.array([200, 0, 0])
     v2 = np.array([0, 50, 80])
 
-    for p in Bresenham_Rectangle(v1,v2,v3):
-        arr[p[0],p[1],p[2]] = 1
+    for p in Bresenham_Rectangle(v1, v2, v3):
+        arr[p[0], p[1], p[2]] = 1
     import matplotlib.pyplot as plt
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     X, Y, Z = filter_pointcloud(arr, BS=8)
-    #X, Y, Z = np.nonzero(arr)
+    # X, Y, Z = np.nonzero(arr)
     ax.scatter(xs=X, ys=Y, zs=Z, marker=".")
     axisEqual3D(ax)
     plt.show()
+
 
 def filter_pointcloud(arr, BS=4):
     X, Y, Z = [], [], []
@@ -216,7 +210,7 @@ def test_sphere():
     S = 512
     arr = np.zeros([S, S, S], dtype=bool)
 
-    for q in Bresenham_sphere(S//2, S//2, S//2, int(S*0.4)):
+    for q in Bresenham_sphere(S // 2, S // 2, S // 2, int(S * 0.4)):
         arr[q[0], q[1], q[2]] = 1
 
     X, Y, Z = filter_pointcloud(arr, BS=4)
@@ -225,8 +219,7 @@ def test_sphere():
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-
-    k = (max(X)-min(X))/2 + min(X)
+    k = (max(X) - min(X)) / 2 + min(X)
     X = np.array(X)
     Y = np.array(Y)
     Z = np.array(Z)
@@ -234,19 +227,11 @@ def test_sphere():
     X = X - k
     Y = Y - k
     Z = Z - k
-    pickle_out = open("C:/Users/1.LAPTOP-1DGAKGFF/Desktop/Project_UAV/article 2/bresenham_sphere.pickle","wb")
-    pickle.dump([X,Y,Z], pickle_out)
-    pickle_out.close()
 
-    #X, Y, Z = np.nonzero(arr)
+
+    # X, Y, Z = np.nonzero(arr)
     ax.scatter(xs=X, ys=Y, zs=Z, marker=".")
-    #ax.plot(X, Y, zs=Z, marker=".", linestyle=None)
+    # ax.plot(X, Y, zs=Z, marker=".", linestyle=None)
     axisEqual3D(ax)
     plt.show()
-#
-# time1 = datetime.datetime.now()
-# len_points = test_triangle()
-# time2 = datetime.datetime.now()
-# print("Number of points (first approach): ",len_points)
-# print("Time (first approach): ",time2 - time1)
-# #test_rectangle()
+
