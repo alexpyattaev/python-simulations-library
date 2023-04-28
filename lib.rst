@@ -10,41 +10,35 @@ Submodules
 
 lib.conf_utils module
 ---------------------
+Allows for various tricks with configuration files in pure python
 
 .. automodule:: lib.conf_utils
     :members:
     :undoc-members:
     :show-inheritance:
 
-lib.exp_functs module
----------------------
+lib.digital_filters module
+--------------------------
+Handles the abstraction of various filter implementations
 
-.. automodule:: lib.exp_functs
+.. automodule:: lib.digital_filters
     :members:
     :undoc-members:
     :show-inheritance:
 
-lib.extlib_proxy module
------------------------
-
-.. automodule:: lib.extlib_proxy
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-lib.file_lock module
---------------------
-
-.. automodule:: lib.file_lock
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 lib.hexgrid module
 ------------------
+
+Implements abstraction over hexagonal grids for various cellular scenarios
 
 .. automodule:: lib.hexgrid
     :members:
     :undoc-members:
     :show-inheritance:
 
+
+.. automodule:: lib
+    :members:
+    :undoc-members:
+    :show-inheritance:

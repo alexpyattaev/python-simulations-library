@@ -115,7 +115,7 @@ def quaternion_from_elements(w: float, i: float, j: float, k: float) -> quaterni
 def quaternion_to_transform_matrix(q: quaternion) -> transform_matrix:
     """Return homogeneous rotation matrix from quaternion. Quaternion must be in a form of np array
     >>> M = quaternion_to_transform_matrix(quaternion_from_elements(1, 0, 0, 0))
-    >>> np.allclose(M, np.identity(4))
+    >>> np.allclose(M, np.ident(4))
     True
     >>> M = quaternion_to_transform_matrix(quaternion_from_elements(0, 1, 0, 0))
     >>> np.allclose(M, np.diag([1, -1, -1, 1]))
@@ -175,7 +175,7 @@ def quaternion_from_matrix(matrix: np.ndarray, atol: float = 1e-08, skip_checks=
         (as a np array) from which the quaternion's rotation should be created.
 
 
-    >>> q = quaternion_from_matrix(np.identity(4))
+    >>> q = quaternion_from_matrix(np.ident(4))
     >>> np.allclose(q, [1, 0, 0, 0])
     True
     >>> q = quaternion_from_matrix(np.diag([1.0, -1.0, -1.0, 1.0]))

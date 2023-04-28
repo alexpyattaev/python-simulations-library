@@ -62,7 +62,7 @@ def look_at(eyePosition3D, center3D, upVector3D):
 def demo():
     xsize = 1
     ysize = 1
-    #model_matrix = np.identity(4)
+    #model_matrix = np.ident(4)
     model_matrix = translation_matrix(vector(1.0, 0, 0))@euler_matrix(ak=np.pi/4)@scale_matrix(0.8)
 
     view_matrix = compose_matrix(angles=[0.0, 0., np.pi], translate=vector(0.0, 0.0, -7))

@@ -12,7 +12,7 @@ class Arcball(object):
     """Virtual Trackball Control.
 
     >>> ball = Arcball()
-    >>> ball = Arcball(initial=np.identity(4))
+    >>> ball = Arcball(initial=np.ident(4))
     >>> ball.place([320, 320], 320)
     >>> ball.down([500, 250])
     >>> ball.drag([475, 275])

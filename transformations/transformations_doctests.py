@@ -1,7 +1,7 @@
 """
 >>> alpha, beta, gamma = 0.123, -1.234, 2.345
 >>>
->>> I = np.identity(4)
+>>> I = np.ident(4)
 >>> Rx = rotation_matrix(alpha, xaxis)
 >>> Ry = rotation_matrix(beta, yaxis)
 >>> Rz = rotation_matrix(gamma, zaxis)
@@ -17,7 +17,7 @@ True
 True
 >>> alpha, beta, gamma = 0.123, -1.234, 2.345
 >>>
->>> I = np.identity(4)
+>>> I = np.ident(4)
 >>> Rx = rotation_matrix(alpha, xaxis)
 >>> Ry = rotation_matrix(beta, yaxis)
 >>> Rz = rotation_matrix(gamma, zaxis)
