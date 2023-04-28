@@ -1,6 +1,6 @@
 import itertools
 import pickle
-from numba import jit
+from lib.numba_opt import jit_hardcore
 import numpy as np
 from lib.bresenham_algorithms.bresenham_algo_2D import Bresenham_circle
 
@@ -31,7 +31,7 @@ def Bresenham_sphere(x0:int, y0:int, z0:int, radius:int, reflection=True):
 
 
 # Bresenham rays generator
-@jit(nopython=True)
+@jit_hardcore
 def Bresenham3D(x1: int, y1: int, z1: int, x2: int, y2: int, z2: int):
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)

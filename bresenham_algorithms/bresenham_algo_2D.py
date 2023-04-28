@@ -3,10 +3,7 @@ from typing import Tuple
 
 import numpy as np
 
-
 # http://members.chello.at/easyfilter/bresenham.html
-from numba import jit
-
 from lib.numba_opt import jit_hardcore
 
 
@@ -63,7 +60,7 @@ def Bresenham_AA(p1, p2) -> Tuple[Tuple[int, int], float]:
 
 ALL_QUARTERS = tuple(itertools.product([-1, 1], [-1, 1]))
 
-@jit(nopython=True)
+@jit_hardcore
 def Bresenham_circle(x0, y0, radius, quarters=ALL_QUARTERS):
     if radius == 0:
         yield (x0, y0)
