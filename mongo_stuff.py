@@ -1,5 +1,4 @@
 import hashlib
-import itertools
 import json
 import os
 import time
@@ -94,53 +93,93 @@ def test_make_bson_safe(unsafe_document):
     assert type(unsafe_document['d']) == Int64, "BSON does not support bigint"
 
 
-def connect_to_results(db_server_path: str = None, client_pem="certs/client.pem",
-                       server_crt='certs/ca.crt', login_password=(None, None)) -> Database:
-    """
-    Connect to typical results collection.
-    If db_server_path is unspecified will load from default_db_file.txt
+class ConnectionBuilder:
+    _db_server: Optional[str] = None
+    _db_collection: Optional[str] = None
+    _client_pem: str = "certs/client.pem"
+    _server_crt: str = 'certs/ca.crt'
+    _tls_insecure: bool = False
+    _server_url_configured = False
+    _login_configured = False
+    _login = None
+    _password = None
 
-    :param db_server_path: The server URL to use, e.g. 'mongodb://simhost.winter.rd.tut.fi:27017/collection'.
-    :param client_pem: client certificate path
-    :param server_crt: server certificate path
-    :param login_password: tuple of strings with login and password. if not given authfile.txt is used
-    :return: Database object or raises exception
-    """
-    if db_server_path is None:
+    def __init__(self):
+        if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
+            print("Hacker mode activated, ignoring mongodb SSL certificate errors.")
+            self._tls_insecure = True
+
+    def with_silent_defaults(self):
+        """
+        Use defaults for everything
+        """
+        self.with_default_db()
+        self.with_default_login_password()
+        return self
+
+    def with_insecure_TLS(self):
+        """
+           Ignore TLS validation
+        """
+        self._tls_insecure = True
+        return self
+
+    def with_login_password(self, login: str, password: str):
+        self._login = login
+        self._password = password
+        self._login_configured = True
+        return self
+
+    def with_default_login_password(self, authfile_name: str = "authfile.txt"):
+        authfile = open(authfile_name)
+        self._login, self._password = authfile.readline().strip('\n').split()
+        self._login_configured = True
+        return self
+
+    def with_db_path(self, db_server_path: str):
+        proto, server_url = db_server_path.split("//")
+        try:
+            db_server, self._db_collection = server_url.rsplit('/', maxsplit=1)
+        except:
+            db_server = server_url
+            self._db_collection = ""
+
+        self._db_server = proto + "//" + db_server
+        self._server_url_configured = True
+        return self
+
+    def with_default_db(self):
         try:
             defdb_file = open('default_db_file.txt')
             default_db = defdb_file.readline().strip('\n')
         except IOError:
             print('Could not open default_db_file.txt')
             raise
-        db_server, collection = default_db.rsplit('/', maxsplit=1)
-    else:
-        proto, server_url = db_server_path.split("//")
-        try:
-            db_server, collection = server_url.rsplit('/', maxsplit=1)
-        except:
-            db_server = server_url
-            collection = ""
+        self._db_server, self._db_collection = default_db.rsplit('/', maxsplit=1)
+        self._server_url_configured = True
+        return self
 
-        db_server = proto + "//" + db_server
+    def with_custom_TLS(self, client_pem: str, server_crt: str):
+        self._client_pem = client_pem
+        self._server_crt = server_crt
+        return self
 
-    tls_insecure = False
-    if "IGNORE_TLS" in os.environ and os.environ["IGNORE_TLS"] == "TRUE":
-        print("Hacker mode activated, ignoring mongodb SSL certificate errors.")
-        tls_insecure = True
-    if login_password is None:
-        authfile = open('authfile.txt')
-        login, password = authfile.readline().strip('\n').split()
-    else:
-        login, password = login_password
-    print(f"Connecting to mongodb server {db_server}")
-    print(f"Using credentials: {login}:{password}, collection '{collection}'")
+    def connect(self) -> Database:
+        assert self._server_url_configured, "URL must be configured"
+        assert self._login_configured, "Login must be configured"
+        print(f"Connecting to mongodb server {self._db_server}")
+        print(f"Using credentials: {self._login}:{self._password}, collection '{self._db_collection}'")
 
-    client = MongoClient(host=db_server, ssl=True, tlsCAFile=os.path.abspath(server_crt), authSource=login,
-                         username=login, password=password,
-                         tlsCertificateKeyFile=os.path.abspath(client_pem), tlsInsecure=tls_insecure)
+        client = MongoClient(host=self._db_server, ssl=True,
+                             tlsCAFile=os.path.abspath(self._server_crt),
+                             authSource=self._login,
+                             username=self._login, password=self._password,
+                             tlsCertificateKeyFile=os.path.abspath(self._client_pem), tlsInsecure=self._tls_insecure)
 
-    return client[login] if not collection else client[login][collection]
+        return client[self._login] if not self._db_collection else client[self._login][self._db_collection]
+
+
+
 
 
 def ensure_indices(collection: Collection, drop_current=False, index_base_name="SLS_experiment_idx"):
@@ -223,33 +262,34 @@ def mongo_make_colors(coll, key: str, categories: str = None, cmap=None):
         all_categories = coll.distinct(categories)
         all_categories.sort()
         ranges1 = np.linspace(0, 1, len(all_categories), endpoint=False)
-        ranges2 = np.linspace(ranges1[1], 1, len(all_categories), endpoint=True) - ranges1[1]/len(all_keys)
+        ranges2 = np.linspace(ranges1[1], 1, len(all_categories), endpoint=True) - ranges1[1] / len(all_keys)
 
         for i, cat in enumerate(all_categories):
             for j, v in enumerate(np.linspace(ranges1[i], ranges2[i], len(all_keys), endpoint=True)):
                 COLORS[(cat, all_keys[j])] = cmap(v)
     else:
         for j, v in enumerate(np.linspace(0, 1, len(all_keys))):
-            COLORS[(all_keys[j], )] = cmap(v)
+            COLORS[(all_keys[j],)] = cmap(v)
 
     def colors_fn(*q):
         return COLORS[q]
 
     return colors_fn
 
-LINE_STYLES_COLLECTION= {
-     'solid': (0, ()),
-     'dotted': (0, (1, 1)),
-     'dashed': (0, (5, 1)),
-     'dashdot': 'dashdot',
-     'long dash with offset': (5, (10, 3)),
-     'densely dashdotted':    (0, (3, 1, 1, 1)),
-     'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1)),
-     'dashdotdotted':         (0, (3, 2, 1, 2, 1, 2)),
-     'loosely dashdotted':    (0, (3, 10, 1, 10)),
-     'loosely dotted':        (0, (1, 5)),
-     'dashdotted':            (0, (3, 5, 1, 5)),
-     'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
+
+LINE_STYLES_COLLECTION = {
+    'solid': (0, ()),
+    'dotted': (0, (1, 1)),
+    'dashed': (0, (5, 1)),
+    'dashdot': 'dashdot',
+    'long dash with offset': (5, (10, 3)),
+    'densely dashdotted': (0, (3, 1, 1, 1)),
+    'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1)),
+    'dashdotdotted': (0, (3, 2, 1, 2, 1, 2)),
+    'loosely dashdotted': (0, (3, 10, 1, 10)),
+    'loosely dotted': (0, (1, 5)),
+    'dashdotted': (0, (3, 5, 1, 5)),
+    'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
 }
 
 
@@ -295,7 +335,8 @@ def mongo_make_linestyles(coll, key, styles=tuple(LINE_STYLES_COLLECTION.values(
     return style_fn
 
 
-def find_experiments(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> List[dict]:
+def find_experiments(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> List[
+    dict]:
     """
         Find all experiments with given tag in given collection
         :param collection: collection to search
@@ -318,13 +359,15 @@ def find_experiments(collection: Collection, tag: str, only_completed: True, lab
     return exps
 
 
-def make_watermark(exp:dict)->str:
+def make_watermark(exp: dict) -> str:
     """Makes a watermark text for a given experiment
     :param exp: Experiment dict
     """
     return "{tag} {time_completed:%d.%m.%y %H:%M} {_id}".format(**exp)
 
-def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> Optional[dict]:
+
+def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> \
+Optional[dict]:
     """
     Find latest experiment with given tag in given collection
     :param collection: collection to search
@@ -610,7 +653,8 @@ def get_progress(collection, tag):
     total = 0
     failed = 0
     for t in trials:
-        sys_data = collection.find_one({"type": "SYS", "link": t['_id']}, ['termination_condition', 'termination_condition_code'])
+        sys_data = collection.find_one({"type": "SYS", "link": t['_id']},
+                                       ['termination_condition', 'termination_condition_code'])
         total += 1
         if sys_data is not None:
             if sys_data['termination_condition_code'] > 0:

@@ -10,7 +10,8 @@ from lib.numba_opt import njit, double, int64
 
 
 def lfilter_initial_conditions(b, a, init: float):
-    return signal.lfiltic(b, a, y=np.ones_like(a), x=np.ones_like(b))* init
+    #return signal.lfiltic(b, a, y=np.ones_like(a), x=np.ones_like(b))* init
+    return signal.lfilter_zi(b, a) * init
 
 
 class Stateful_Linear_Filter:
@@ -66,9 +67,9 @@ def test_stateful_linear_filter():
     res = np.zeros_like(data)
     for i, x in enumerate(data):
         res[i] = lf(x)
-    trues = signal.lfilter(b,a, data)
+    trues = signal.lfilter(b, a, data)
     plt.figure()
-    plt.plot(data, label ="raw")
+    plt.plot(data, label="raw")
     plt.plot(res, label="stateful filter")
     plt.plot(trues, label="scipy.signal.lfilter")
     plt.legend()

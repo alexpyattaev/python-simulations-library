@@ -47,7 +47,7 @@ class Arcball(object):
         if initial is None:
             self._qdown = quaternion_from_elements(1.0, 0.0, 0.0, 0.0)
         else:
-            initial = np.array(initial, dtype=np.float64)
+            initial = np.array(initial, dtype=float64)
             if initial.shape == (4, 4):
                 self._qdown = quaternion_from_matrix(initial)
             elif initial.shape == (4,):
