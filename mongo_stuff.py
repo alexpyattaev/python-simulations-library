@@ -406,18 +406,18 @@ def dump_trials(collection: Collection, exp: dict) -> int:
     return total_trials
 
 
-def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, reload_results="AUTO",
+def preprocess_dataset(collection: Collection, scratch: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
                        fields_components: List[Dict[str, Dict[str, str]]] = None,
                        node_breakdown_param: str = 'subtype',
                        tag: str = 'STUFF', ) -> Cached_Data_Descriptor:
     """
-    Preprocess a dataset by copying only needed fileds into junk collection.
+    Preprocess a dataset by copying only needed fileds into scratch collection.
     The overall structure of the collection is essentially preserved, but the data
     from different seeds will be aggregated into lists for a given field, rather than as individual points.
 
     :param collection: A collection to read from (i.e. with data)
-    :param junk: A collection where stuff can be written (i.e. disposable collection)
+    :param scratch: A collection where stuff can be written (i.e. disposable collection)
     :param exp: the Experiment document
     :param reload_results: set to True to always reload, False to never reload, AUTO to decide automatically
 
@@ -435,11 +435,11 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                      "project": {"jobs_handled": "jobs_handled"}
                      }]
     :param node_breakdown_param: additional node category breakdown field (like, is it a BS or client)
-    :param tag: tag under which the data is dumped in the junk collection
+    :param tag: tag under which the data is dumped in the scratch collection
     :returns a data descriptor which contains information about the data inserted into
-            the junk collection as a result of this function
+            the scratch collection as a result of this function
 
-    Usage of this is only appropriate if you do not mind destroying "junk" collection. Further operations with data
+    Usage of this is only appropriate if you do not mind destroying "scratch" collection. Further operations with data
     can be made either directly or with organize_results() function.
     """
 
@@ -465,7 +465,7 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
     # print(cache_descr.fields_hash)
     # print("=" * 40)
     # exit()
-    if junk.find_one({"exp_ID": cache_descr.exp_ID, 'fields_hash': cache_descr.fields_hash}) is None:
+    if scratch.find_one({"exp_ID": cache_descr.exp_ID, 'fields_hash': cache_descr.fields_hash}) is None:
         if reload_results is True or reload_results == "AUTO":
             RELOAD_RESULTS = True
             if reload_results == "AUTO":
@@ -482,13 +482,13 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
 
     if not RELOAD_RESULTS:
         print("Loading cached values")
-        st = junk.find_one({"TAG": tag, "exp_ID": cache_descr.exp_ID})
+        st = scratch.find_one({"TAG": tag, "exp_ID": cache_descr.exp_ID})
         st = {k: st.get(k, None) for k in asdict(cache_descr).keys()}
         cache_descr = replace(cache_descr, **st)
         return cache_descr
 
-    # junk.delete_many({'TAG': tag})
-    junk.delete_many({})
+    # scratch.delete_many({'TAG': tag})
+    scratch.delete_many({})
 
     print('Grouping within MC trials')
     MC_groups = list(collection.aggregate([{"$match": {"link": exp['_id']}},
@@ -526,14 +526,14 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                 d = {**{node_breakdown_param: node_type}, **params}
 
                 with upsert_timer:
-                    rec_id = junk.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
-                                                      return_document=ReturnDocument.AFTER)["_id"]
+                    rec_id = scratch.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
+                                                         return_document=ReturnDocument.AFTER)["_id"]
                 # add data from nodes
                 for node in tqdm(nodes, desc=f"Nodes[{node_type}]", colour="blue", unit="node", miniters=10):
                     updates = {v: node[k] for k, v in fields_node.items()}
                     check_keys(updates, d)
                     with push_timer:
-                        junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                        scratch.update_one(filter={"_id": rec_id}, update={"$push": updates})
                     if fields_components is None:
                         continue
                     assert isinstance(fields_components, list), "Expecting list for fields_components"
@@ -544,11 +544,11 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                             components = list(collection.find(comp_filter, list(comp_projection.keys())))
                         # print(comp_desc)
                         if len(components) > 1:
-                            autonum = comp_desc['auto_enumerate']
+                            autonum = comp_desc.get('auto_enumerate', False)
                             if not autonum:
                                 msg = f"""Component filter {comp_filter} produced multiple results for 
                                       node {node['_id']} this is not currently supported, and 
-                                      thus you should change the filter"""
+                                      thus you should change the filter or set auto_enumerate:True"""
                                 raise ValueError(msg)
                         else:
                             autonum = False
@@ -562,10 +562,10 @@ def preprocess_dataset(collection: Collection, junk: Collection, exp: dict, relo
                                 raise KeyError(f"Field '{e}' not found in component obtained by {comp_filter}")
                             check_keys(d, updates)
                             with push_timer:
-                                junk.update_one(filter={"_id": rec_id}, update={"$push": updates})
+                                scratch.update_one(filter={"_id": rec_id}, update={"$push": updates})
 
     print(f"Inserting global parameters {asdict(cache_descr)}")
-    junk.insert_one(asdict(cache_descr))
+    scratch.insert_one(asdict(cache_descr))
     print(f"{find_timer.seconds=}, {upsert_timer.seconds=}, {push_timer.seconds=}")
 
     return cache_descr
