@@ -179,9 +179,6 @@ class ConnectionBuilder:
         return client[self._login] if not self._db_collection else client[self._login][self._db_collection]
 
 
-
-
-
 def ensure_indices(collection: Collection, drop_current=False, index_base_name="SLS_experiment_idx"):
     """
     Ensures normal indexes are created on collection for result lookup
@@ -367,7 +364,7 @@ def make_watermark(exp: dict) -> str:
 
 
 def find_last_experiment(collection: Collection, tag: str, only_completed: True, label: str = None, quiet=False) -> \
-Optional[dict]:
+        Optional[dict]:
     """
     Find latest experiment with given tag in given collection
     :param collection: collection to search
