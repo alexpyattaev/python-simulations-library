@@ -3,7 +3,7 @@ import dataclasses
 import distutils.util
 from enum import EnumMeta, IntEnum, Enum
 from io import IOBase
-from typing import Callable, Union, Dict, TypeVar, Type
+from typing import Callable, Union, Dict, TypeVar, Type, Iterable
 import inspect
 import pytest
 
@@ -141,11 +141,19 @@ class Str(Arg):
 
 class _MetaList(type):
     def __getitem__(self, item):
-        return self(typ=item, action="extend", nargs="+", default=[])
+        return self(typ=item, action="extend", nargs="+")
 
 
 class List(Arg, metaclass=_MetaList):
-    """List of certain homogenous type items"""
+    """List of certain homogenous type items
+
+    Format is
+     " --arg 1 2 3 4 "
+    where 1 2 3 4 are the elements to be in the list.
+
+    Alternatively, one can specify
+     " --arg 1 --arg 2 --arg 3 --arg 4 "
+    """
 
     def __init__(self, **kwargs, ):
         Arg.__init__(self, **kwargs)
@@ -251,6 +259,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
     for field in dataclasses.fields(container_class):
         name = field.name
         default = field.default
+        default_factory = field.default_factory
         value_or_class = field.type
         if isinstance(value_or_class, type):  # Type is not an instance (e.g. int or float)
             if issubclass(value_or_class, Arg):
@@ -263,7 +272,7 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
                 raise TypeError(f"Values must be typed as subclasses of Arg or be one of {autocast_types}")
         else:
             value = value_or_class
-            if default is not None:
+            if default is not None and default_factory is None:
                 value.set_default(default)
         if verbose:
             print("add_argument", mangle_name(name, value.pos), value.kwargs)
@@ -335,6 +344,7 @@ def arg_definitions():
         int_enum_field: Choice[int_enum](help="choice from int enum") = int_enum.TWO
 
         list_choice: Choice[[1, 4, 7]](help="choice from iterable") = 0
+        list_of_int: List[int](help="List of integers") = dataclasses.field(default_factory=list)
         bool_field: bool = False
         bool_flag: Bool(flag=True) = False
         bool_switch: Bool(flag=False) = False
@@ -342,10 +352,12 @@ def arg_definitions():
     return Args
 
 
+
+
 def test_parse(arg_definitions):
-    opt = "--req_str=bla --opt_str=foo --bare_str=ads --int_field=10 --bare_int=20 --float_field=1.2 \
-    --bare_float=35.0  --str_enum_field=A --int_enum_field=2 --list_choice=7".split()
-    args = parse_to(arg_definitions, args=opt)
+    opt = "--list_of_int 1 2 3 --req_str=bla --opt_str=foo --bare_str=ads --int_field=10 --bare_int=20 --float_field=1.2 \
+    --bare_float=35.0  --str_enum_field=A --int_enum_field=2 --list_choice=7 ".split()
+    args = parse_to(arg_definitions, args=opt, verbose=True)
     print(args)
 
 
@@ -364,7 +376,7 @@ def test_help(arg_definitions):
 def test_bool(arg_definitions):
     opt = "--bool_field=False  --bool_switch=False".split()
     args = parse_to(arg_definitions, args=opt, verbose=True)
-    #print(args.bool_field, args.bool_flag, args.bool_switch)
+    # print(args.bool_field, args.bool_flag, args.bool_switch)
     assert not args.bool_field
     assert not args.bool_flag
     assert not args.bool_switch
