@@ -272,7 +272,6 @@ def parse_to(container_class: Type[T], epilog: str = "", transform_names: Callab
                 raise TypeError(f"Values must be typed as subclasses of Arg or be one of {autocast_types}")
         else:
             value = value_or_class
-            print(value, default, default_factory)
             if default is not None and default_factory == dataclasses.MISSING:
                 value.set_default(default)
         if verbose:
