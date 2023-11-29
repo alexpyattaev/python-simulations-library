@@ -6,12 +6,12 @@ import mmap
 import os
 import subprocess
 import sys
-import unittest
 import warnings
 from hashlib import md5
 from typing import Tuple, Iterable, BinaryIO
 
 import psutil
+import pytest
 
 try:
     from xdg import BaseDirectory
@@ -137,6 +137,7 @@ def safe_remove(target):
         else:
             raise e
 
+
 def get_ram_usage() -> int:
     if sys.platform != 'linux':
         return 0
@@ -167,28 +168,25 @@ def signal_pdb(sig, frame):
     pdb.Pdb().set_trace(frame)
 
 
-class Test_lib_linux(unittest.TestCase):
-    def test_check_ram(self):
-        with self.assertRaises(MemoryError):
-            check_ram(threshold_percent=100, exit_on_failure=False)
-
-    def test_get_file_md5(self):
-        file = os.path.abspath(__file__)
-        fileobj = open(file, 'rb')
-        hash1 = get_file_hash(fileobj).hexdigest()
-        self.assertEqual(fileobj.tell(), 0) # make sure file pointer was not messed with
-
-        # compute hash with md5sum and verify
-        import subprocess
-        hash2 = subprocess.getoutput(f"md5sum {file}")
-        self.assertTrue(hash2.startswith(hash1)) #
+def test_check_ram(self):
+    with pytest.assertRaises(MemoryError):
+        check_ram(threshold_percent=100, exit_on_failure=False)
 
 
-def get_git_repo_hashes():
-    repo_names = [repo.replace('.git','') for repo in subprocess.getoutput("find -name .git").splitlines()]
+def test_get_file_md5(self):
+    file = os.path.abspath(__file__)
+    fileobj = open(file, 'rb')
+    hash1 = get_file_hash(fileobj).hexdigest()
+    self.assertEqual(fileobj.tell(), 0)  # make sure file pointer was not messed with
+
+    # compute hash with md5sum and verify
+    import subprocess
+    hash2 = subprocess.getoutput(f"md5sum {file}")
+    assert (hash2.startswith(hash1))
+
+
+def get_git_repo_hashes() -> dict:
+    """Get repo hashes of all repositories under current WD"""
+    repo_names = [repo.replace('.git', '') for repo in subprocess.getoutput("find -L -name .git").splitlines()]
     versions = {n: subprocess.getoutput(f"cd {n}; git rev-parse HEAD") for n in repo_names}
     return versions
-
-
-if __name__ == '__main__':
-    unittest.main()

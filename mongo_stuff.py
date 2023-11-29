@@ -403,6 +403,92 @@ def dump_trials(collection: Collection, exp: dict) -> int:
     return total_trials
 
 
+def check_cached_scratch_data(scratch: Collection, cache_descr: Cached_Data_Descriptor,
+                              reload_results: str = "AUTO") -> Tuple[bool, Cached_Data_Descriptor]:
+    if reload_results is True:
+        print("Forced reloading of cached data...")
+        return True, cache_descr
+
+    cached = scratch.find_one({"exp_ID": cache_descr.exp_ID, 'fields_hash': cache_descr.fields_hash})
+    if cached is None:
+        if reload_results == "AUTO":
+            print("No suitable cached data, recalculating...")
+            return True, cache_descr
+        else:
+            print("Latest experiment does not match cached values!!! Maybe reload?")
+            return False, cache_descr
+
+    else:
+        print("Loading cached values")
+        st = {k: cached.get(k, None) for k in asdict(cache_descr).keys()}
+        cache_descr = replace(cache_descr, **st)
+        return False, cache_descr
+
+
+
+
+
+def preprocess_dataset_simple(collection: Collection, scratch: Collection, exp: dict,
+                              fields: Dict[str, str] = None, extract_from: str = "RESULTS", reload_results="AUTO",
+                              tag: str = "STUFF") -> Cached_Data_Descriptor:
+    find_timer = Context_Timer()
+    upsert_timer = Context_Timer()
+    push_timer = Context_Timer()
+
+    ensure_indices(collection)
+
+    md5 = hashlib.md5()
+    all_params = json.dumps(fields, sort_keys=True) + tag
+
+    # print("="*40)
+    # print(all_params)
+    md5.update(all_params.encode("ASCII"))
+    cache_descr = Cached_Data_Descriptor(TAG=tag, exp_ID=exp['_id'], all_fields=all_params, fields_hash=md5.hexdigest())
+    print(cache_descr)
+    need_reload, cache_descr = check_cached_scratch_data(scratch=scratch, cache_descr=cache_descr, reload_results=reload_results)
+    if not need_reload:
+        return cache_descr
+
+    scratch.delete_many({})
+    print('Grouping within MC trials')
+    MC_groups = list(collection.aggregate([{"$match": {"link": exp['_id']}},
+                                           {"$group": {"_id": "$params", "items": {"$push": "$_id"}}}], batchSize=10))
+
+    print('Beginning parse')
+
+    for group_data in tqdm(MC_groups, desc="Parameter groups", colour="red", unit="group"):
+        # print(f"Parsing MC group {group_data['_id']}")
+        params = group_data['_id']
+        if cache_descr.num_seeds == 0:
+            cache_descr.num_seeds = len(group_data['items'])
+
+        # for each trial in MC group
+        for trial_id in tqdm(group_data['items'], desc="Trials", colour="green", unit="trial"):
+            # Get value from the config
+            with find_timer:
+                nodes = list(collection.find({"type": extract_from, "link": trial_id},
+                                             list(fields.keys())))
+            # Make record to hold values related to this node type in this trial
+
+            d = params.copy()
+
+            with upsert_timer:
+                rec_id = scratch.find_one_and_update(filter=d, update={"$set": d}, projection={"_id": 1}, upsert=True,
+                                                     return_document=ReturnDocument.AFTER)["_id"]
+            # add data from nodes
+            for node in tqdm(nodes, desc=f"Going over {extract_from} records...", colour="blue", unit="node", miniters=10):
+                updates = {v: node[k] for k, v in fields.items()}
+
+                with push_timer:
+                    scratch.update_one(filter={"_id": rec_id}, update={"$push": updates})
+
+    print(f"Inserting global parameters {asdict(cache_descr)}")
+    scratch.insert_one(asdict(cache_descr))
+    print(f"{find_timer.seconds=}, {upsert_timer.seconds=}, {push_timer.seconds=}")
+
+    return cache_descr
+
+
 def preprocess_dataset(collection: Collection, scratch: Collection, exp: dict, reload_results="AUTO",
                        fields_node: Dict[str, str] = None,
                        fields_components: List[Dict[str, Dict[str, str]]] = None,
