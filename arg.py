@@ -91,6 +91,8 @@ class Int(Arg):
 
     def __init__(self, bounds=(None, None), **kwargs):
         self.bounds = bounds
+        assert len(bounds) == 2
+        assert (bounds[1] is None) or (bounds[0] is None) or (bounds[1] >= bounds[0])
         Arg.__init__(self, typ=int, **kwargs)
 
 
@@ -146,6 +148,8 @@ class Float(Arg):
 
     def __init__(self, bounds=(None, None), **kwargs):
         self.bounds = bounds
+        assert len(bounds) == 2
+        assert (bounds[1] is None) or (bounds[0] is None) or (bounds[1] >= bounds[0])
         Arg.__init__(self, typ=float, **kwargs)
 
 
