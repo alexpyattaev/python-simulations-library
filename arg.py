@@ -85,8 +85,10 @@ class Arg:
             self.kwargs["default"] = default
 
     def validate(self, val: object) -> object:
-        if not isinstance(val, self.typ):
-            raise argparse.ArgumentTypeError(f"{val} is not of expected type {self.typ}")
+        try:
+            self.typ(val)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{val} is not of expected type {self.typ} and can not be coerced")
         return self.typ(val)
 
     @property
@@ -213,12 +215,17 @@ class List(Arg, metaclass=_MetaList):
         return self
 
     def validate(self, val: object) -> list:
+        newlist = []
         if not isinstance(val, list):
             raise argparse.ArgumentTypeError("Expected a list")
         for v in val:
-            if not isinstance(v, self.typ):
+            try:
+                v = self.typ(v)
+            except ValueError:
                 raise argparse.ArgumentTypeError(f"Expected elements to be {self.typ}, got {v}:{type(v)}")
-        return val
+            newlist.append(v)
+
+        return v
 
 
 class _MetaChoice(type):
@@ -355,11 +362,11 @@ class Arg_Container(Force_Annotation):
                     # Type is not an instance (e.g. int or float)
                     if issubclass(value_or_class, Arg):
                         d = data.get(name, default)
-                        print(1, value_or_class, d, name, default)
+                        #print(1, value_or_class, d, name, default)
                         fill_data[name] = value_or_class().validate(d)
                     elif value_or_class in autocast_types:  # this handles primitive types
                         d = data.get(name, default)
-                        print(2, value_or_class, d, name, default)
+                        #print(2, value_or_class, d, name, default)
                         assert isinstance(d, value_or_class)
                         # downcast to the expected type just in case
                         fill_data[name] = value_or_class(d)
@@ -375,9 +382,9 @@ class Arg_Container(Force_Annotation):
                         default = default_factory()
 
                     d = data.get(name, default)
-                    print(3, value_or_class, d, name, default)
+                    #print(3, value_or_class, d, name, default)
                     fill_data[name] = value.validate(d)
-            except (argparse.ArgumentTypeError) as e:
+            except argparse.ArgumentTypeError as e:
                 e.add_note(f"Could not parse argument {name}")
                 raise e
 
@@ -394,13 +401,13 @@ def test_from_dict(arg_definitions):
     a = arg_definitions.from_dict(json.loads(jj))
     print(a)
 
-    with pytest.raises(argparse.ArgumentTypeError):
-        jj = '''{"list_of_int": [1.1, 2.3, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
-        "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
-        "float_field":1.2,
-        "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":7}'''
-        a = arg_definitions.from_dict(json.loads(jj))
-        print(a)
+    #with pytest.raises(argparse.ArgumentTypeError):
+    jj = '''{"list_of_int": [1.1, 2.3, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
+    "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
+    "float_field":1.2,
+    "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":7}'''
+    a = arg_definitions.from_dict(json.loads(jj))
+    print(a)
 
     with pytest.raises(argparse.ArgumentTypeError):
         jj = '''{"list_of_int": [1, 2, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
