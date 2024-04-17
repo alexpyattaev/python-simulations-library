@@ -1,5 +1,17 @@
 import os
 from typing import List
+import subprocess
+
+
+def slurm_cores_available(partition: str = "") -> int:
+    try:
+        cmd = 'sinfo -h -o %C'
+        if partition:
+            cmd += f" --partition {partition}"
+        x = subprocess.check_output(cmd.split(), shell=False)
+        return int(x.decode('ASCII').strip().split('/')[-1])
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return 0
 
 
 def create_sbatch_file(job_name: str, args: List[str], log_dir: str, ntasks: int = 1,

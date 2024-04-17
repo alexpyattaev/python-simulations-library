@@ -1,9 +1,8 @@
 import argparse
 import dataclasses
-import distutils.util
 from enum import EnumMeta, IntEnum, Enum
 from io import IOBase
-from typing import Callable, Union, Dict, TypeVar, Type, Iterable
+from typing import Callable, Union, Dict, TypeVar, Type
 import inspect
 import pytest
 
@@ -52,11 +51,11 @@ class Force_Annotation:
         for vn, v in self.__class__.__dict__.items():
             if vn.startswith("__"):
                 continue
-            if inspect.isfunction(v) or inspect.isdatadescriptor(v):
+            if inspect.isfunction(v) or inspect.isdatadescriptor(v) or inspect.ismethod(v):
                 continue
-            assert (
-                vn in self.__annotations__
-            ), f"All variables in {self.__class__} must be annotated, {vn} was not!"
+            if vn not in self.__annotations__:
+                print(vn, v, type(v), v.__dict__)
+                raise TypeError(f"All variables in {self.__class__} must be annotated, {vn} was not!")
 
 
 class Arg:
@@ -85,6 +84,15 @@ class Arg:
         else:
             self.kwargs["default"] = default
 
+    def validate(self, val: object) -> object:
+        if not isinstance(val, self.typ):
+            raise argparse.ArgumentTypeError(f"{val} is not of expected type {self.typ}")
+        return self.typ(val)
+
+    @property
+    def typ(self):
+        return self.kwargs.get("type", None)
+
 
 class Int(Arg):
     """Int argument"""
@@ -94,6 +102,15 @@ class Int(Arg):
         assert len(bounds) == 2
         assert (bounds[1] is None) or (bounds[0] is None) or (bounds[1] >= bounds[0])
         Arg.__init__(self, typ=int, **kwargs)
+
+    def validate(self, val: object) -> int:
+        v = Arg.validate(self, val)
+        if self.bounds[0] is not None:
+            assert (v >= self.bounds[0])
+
+        if self.bounds[1] is not None:
+            assert (v <= self.bounds[1])
+        return v
 
 
 class Bool(Arg):
@@ -152,6 +169,15 @@ class Float(Arg):
         assert (bounds[1] is None) or (bounds[0] is None) or (bounds[1] >= bounds[0])
         Arg.__init__(self, typ=float, **kwargs)
 
+    def validate(self, val: object) -> float:
+        v = Arg.validate(self, val)
+        if self.bounds[0] is not None:
+            assert (v >= self.bounds[0])
+
+        if self.bounds[1] is not None:
+            assert (v <= self.bounds[1])
+        return v
+
 
 class Str(Arg):
     """String argument"""
@@ -186,6 +212,14 @@ class List(Arg, metaclass=_MetaList):
         self.kwargs.update(kwargs)
         return self
 
+    def validate(self, val: object) -> list:
+        if not isinstance(val, list):
+            raise argparse.ArgumentTypeError("Expected a list")
+        for v in val:
+            if not isinstance(v, self.typ):
+                raise argparse.ArgumentTypeError(f"Expected elements to be {self.typ}, got {v}:{type(v)}")
+        return val
+
 
 class _MetaChoice(type):
     """
@@ -200,19 +234,15 @@ class _MetaChoice(type):
             if issubclass(item, IntEnum):
 
                 def typ(x):
+                    # Try cast directly from int value
                     try:
-                        return getattr(item, x)
-                    except AttributeError:
-                        try:
-                            return item(int(x))
-                        except ValueError:
-                            pass
-                    raise argparse.ArgumentTypeError(
-                        f"invalid {item.__name__} value: {x}"
-                    )
+                        return item(int(x))
+                    except ValueError:
+                        raise argparse.ArgumentTypeError(
+                            f"invalid {item.__name__} value: {x}"
+                        )
 
             else:
-
                 def typ(x):
                     try:
                         return getattr(item, x)
@@ -231,7 +261,7 @@ class _MetaChoice(type):
 class Choice(Arg, metaclass=_MetaChoice):
     """Choice out of iterable or Enum subclass.
 
-    If enum is given as argument, the names of the fields will be used, 
+    If enum is given as argument, the names of the fields will be used,
     and values will be returned.
     """
 
@@ -252,14 +282,31 @@ class Choice(Arg, metaclass=_MetaChoice):
 
         return self
 
+    def validate(self, val: object) -> object:
+        # for choice of primitive types (int, float) make sure arg is correct
+        if self.typ in autocast_types:
+            if not isinstance(val, self.typ):
+                raise argparse.ArgumentTypeError(f"{val} is not of expected type {self.typ}")
+
+        # for enums etc we just call constructor to validate
+        x = self.typ(val)
+
+        if x not in self.choices:
+            raise argparse.ArgumentTypeError(f"{x} is not one of {self.choices}")
+        return x
+
 
 class File(Arg):
     """File argument"""
 
     def __init__(self, mode="r", bufsize=-1, encoding=None, errors=None, **kwargs):
+        self.mode = mode
         Arg.__init__(
             self, typ=argparse.FileType(mode, bufsize, encoding, errors), **kwargs
         )
+
+    def validate(self, val: object) -> object:
+        return open(val, self.mode)
 
 
 autocast_types = {int: Int, float: Float, str: Str, bool: Bool}
@@ -291,6 +338,87 @@ class Arg_Container(Force_Annotation):
                 value = value.name
             result[f.name] = value
         return result
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]):
+        # raise NotImplementedError("This is too hard")
+        # print("WAAA")
+        fill_data = {}
+        for field in dataclasses.fields(cls):
+
+            name = field.name
+            default = field.default
+            default_factory = field.default_factory
+            value_or_class = field.type
+            try:
+                if isinstance(value_or_class, type):
+                    # Type is not an instance (e.g. int or float)
+                    if issubclass(value_or_class, Arg):
+                        d = data.get(name, default)
+                        print(1, value_or_class, d, name, default)
+                        fill_data[name] = value_or_class().validate(d)
+                    elif value_or_class in autocast_types:  # this handles primitive types
+                        d = data.get(name, default)
+                        print(2, value_or_class, d, name, default)
+                        assert isinstance(d, value_or_class)
+                        # downcast to the expected type just in case
+                        fill_data[name] = value_or_class(d)
+                    else:
+                        raise argparse.ArgumentTypeError(
+                            f"Values must be typed as subclasses of Arg or be one of {autocast_types}"
+                        )
+                else:
+                    value = value_or_class
+                    if default is not None and default_factory == dataclasses.MISSING:
+                        default = default
+                    else:
+                        default = default_factory()
+
+                    d = data.get(name, default)
+                    print(3, value_or_class, d, name, default)
+                    fill_data[name] = value.validate(d)
+            except (argparse.ArgumentTypeError) as e:
+                e.add_note(f"Could not parse argument {name}")
+                raise e
+
+        return cls(**fill_data)
+
+
+def test_from_dict(arg_definitions):
+    import json
+
+    jj = '''{"list_of_int": [1, 2, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
+    "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
+    "float_field":1.2,
+    "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":7}'''
+    a = arg_definitions.from_dict(json.loads(jj))
+    print(a)
+
+    with pytest.raises(argparse.ArgumentTypeError):
+        jj = '''{"list_of_int": [1.1, 2.3, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
+        "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
+        "float_field":1.2,
+        "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":7}'''
+        a = arg_definitions.from_dict(json.loads(jj))
+        print(a)
+
+    with pytest.raises(argparse.ArgumentTypeError):
+        jj = '''{"list_of_int": [1, 2, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
+        "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
+        "float_field":1.2,
+        "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":70}'''
+        a = arg_definitions.from_dict(json.loads(jj))
+        print(a)
+
+    with pytest.raises(argparse.ArgumentTypeError):
+        jj = '''{"list_of_int": [1, 2, 3], "req_str":"bla", "opt_str":"foo", "bare_str":"ads",
+        "int_field":10, "bare_int":20,"no_help_str":"NO HELP",
+        "float_field":1.2,
+        "bare_float":35.0, "str_enum_field":"A","int_enum_field":2,"list_choice":7.0}'''
+        a = arg_definitions.from_dict(json.loads(jj))
+        print(a)
+
+
 
 
 A = TypeVar("A", Arg_Container, Arg_Container)
@@ -377,10 +505,11 @@ def arg_definitions():
     class Args(Arg_Container):
         """Example of description for your application"""
 
-        req_str: Str(help="required str field") = "boo"
+        no_help_str: Str = "no_help_str_default"
+        req_str: Str(help="required str field") = "req_str_default"
 
-        opt_str: Str(help="str field") = "bla"
-        bare_str: str = "aaa"
+        opt_str: Str(help="str field") = "opt_str_default"
+        bare_str: str = "bare_str_default"
 
         int_field: Int(help="Int field") = 120
         bare_int: int = 150
@@ -391,7 +520,7 @@ def arg_definitions():
         str_enum_field: Choice[str_enum](help="choice from string enum") = str_enum.A
         int_enum_field: Choice[int_enum](help="choice from int enum") = int_enum.TWO
 
-        list_choice: Choice[[1, 4, 7]](help="choice from iterable") = 0
+        list_choice: Choice[[3, 4, 7]](help="choice from iterable") = 4
         list_of_int: List[int](help="List of integers") = dataclasses.field(
             default_factory=list
         )
