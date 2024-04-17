@@ -15,6 +15,7 @@ def slurm_cores_available(partition: str = "") -> int:
 
 
 def create_sbatch_file(job_name: str, args: List[str], log_dir: str, ntasks: int = 1,
+                       partition="normal",
                        max_time: str = "00:00:00") -> str:
     """
     Creates sbatch script file
@@ -38,6 +39,7 @@ def create_sbatch_file(job_name: str, args: List[str], log_dir: str, ntasks: int
                f"#SBATCH --job-name={job_name}\n" \
                f"#SBATCH --output={output}\n" \
                f"#SBATCH --ntasks={ntasks}\n" \
+               f"#SBATCH --partition={partition}\n" \
                f"#SBATCH --time={max_time}\n" \
                f"srun {argstring}\n"
 
